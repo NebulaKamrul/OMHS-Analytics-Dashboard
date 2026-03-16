@@ -12,7 +12,7 @@ const STATS = [
 const FEATURES = [
   {
     title: "Geographic coverage",
-    body:  "Explore the concentration and gaps of mental health services across every county in Ontario — from Toronto to Thunder Bay.",
+    body:  "Explore the concentration and gaps of mental health services across every county in Ontario, from Toronto to Thunder Bay.",
   },
   {
     title: "Demographic eligibility",
@@ -62,7 +62,7 @@ export default function Landing() {
           </h1>
 
           <p style={{ fontSize:16, lineHeight:1.75, color:"var(--color-text-secondary)", margin:"0 0 36px", maxWidth:580, fontFamily:"var(--font-sans)" }}>
-            An interactive analysis of 5,945 publicly funded mental health and addiction services across Ontario — drawn from the 2019 Ministry of Health open data export. Explore geographic distribution, demographic eligibility, language access, and service specializations.
+            An interactive analysis of 5,945 publicly funded mental health and addiction services across Ontario, drawn from the 2019 Ministry of Health open data export. Explore geographic distribution, demographic eligibility, language access, and service specializations.
           </p>
 
           <div style={{ display:"flex", alignItems:"center", gap:14, flexWrap:"wrap", marginBottom:56 }}>
