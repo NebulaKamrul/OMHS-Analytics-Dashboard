@@ -30,23 +30,6 @@ export default function Landing() {
   return (
     <div style={{ minHeight:"100vh", background:"var(--color-bg)", fontFamily:"var(--font-sans)", display:"flex", flexDirection:"column" }}>
 
-      {/* ── Top bar ───────────────────────────────────────────────────── */}
-      <header style={{ borderBottom:"1px solid var(--color-border)", background:"var(--color-surface)", padding:"0 var(--space-8)", height:50, display:"flex", alignItems:"center" }}>
-        <div style={{ maxWidth:900, width:"100%", margin:"0 auto", display:"flex", alignItems:"center", gap:10 }}>
-          <div style={{ width:24, height:24, borderRadius:3, background:"var(--color-accent)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-            <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
-              <rect x="1" y="7" width="3" height="8" fill="white" rx="0.5"/>
-              <rect x="6" y="4" width="3" height="11" fill="white" rx="0.5"/>
-              <rect x="11" y="1" width="3" height="14" fill="white" rx="0.5"/>
-            </svg>
-          </div>
-          <span style={{ fontSize:13, fontWeight:600, fontFamily:SERIF, color:"var(--color-text-primary)" }}>
-            Ontario Mental Health Services
-          </span>
-          <span style={{ color:"var(--color-border)", fontSize:11, marginLeft:2 }}>·</span>
-          <span style={{ fontSize:11, color:"var(--color-text-muted)" }}>KHP 2019 MOH Export</span>
-        </div>
-      </header>
 
       {/* ── Hero ──────────────────────────────────────────────────────── */}
       <main style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", padding:"var(--space-8)" }}>
