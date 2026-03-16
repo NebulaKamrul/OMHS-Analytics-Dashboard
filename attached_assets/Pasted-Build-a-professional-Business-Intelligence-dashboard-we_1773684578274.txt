@@ -1,0 +1,96 @@
+Build a professional Business Intelligence dashboard web app for a hospital operations analytics use case.
+
+The goal is for this project to look like a serious student BI/data project for an internship application, not a vibe-coded startup landing page. Keep the design clean, minimal, and enterprise-style.
+
+Project requirements:
+
+1. Purpose
+Create a dashboard that helps hospital leadership monitor operational metrics such as:
+- patient admissions over time
+- appointment volumes
+- department utilization
+- average length of stay
+- bed occupancy rate
+- staff-to-patient ratio
+- discharge trends
+
+2. Data model
+Use a realistic relational PostgreSQL schema with tables such as:
+- departments
+- patients
+- admissions
+- appointments
+- staff
+- beds
+
+Include proper primary keys and foreign keys.
+Make the schema normalized and realistic enough to discuss in an interview.
+
+3. Seed data
+Generate realistic synthetic data for several hospital departments, such as:
+- Psychiatry
+- Emergency
+- Outpatient Services
+- Addictions and Mental Health
+- Community Care
+
+The dashboard should have enough seeded data to show trends over time, by department, and by metric.
+
+4. BI functionality
+Include:
+- KPI cards at the top
+- trend charts
+- bar charts by department
+- date range filter
+- department filter
+- table/report view
+- export to CSV for report data if possible
+
+5. SQL focus
+Use real SQL queries for aggregations and analytics, such as:
+- admissions by month
+- appointments by department
+- occupancy rate by department
+- average length of stay
+- discharge counts by week
+
+Make the backend logic easy to explain in an interview.
+
+6. Tech stack
+Frontend: React + TypeScript + Tailwind
+Backend: Express.js + TypeScript
+Database: PostgreSQL
+Charts: use a standard charting library suitable for dashboards
+ORM or query builder is fine, but keep SQL visible and understandable
+
+7. Design direction
+Do NOT make it look like a startup marketing page.
+Do NOT use excessive animations.
+Do NOT use neon colors, gradients, glassmorphism, or “AI app” aesthetics.
+Use a clean dashboard layout with:
+- sidebar or top nav
+- white or light neutral background
+- simple cards
+- readable tables
+- professional spacing
+- muted colors
+
+8. Resume/interview readiness
+Structure the code and README so I can clearly explain:
+- the schema
+- how data flows from database to dashboard
+- how metrics are calculated
+- what SQL queries power each chart
+- how filtering works
+
+9. Deliverables
+Please generate:
+- the full app
+- seeded database
+- sample SQL queries
+- a concise README explaining architecture, schema, and KPIs
+- a short section I can use on my resume describing the project
+
+Important:
+Prioritize realism, clarity, and BI relevance over visual flashiness.
+This should feel like an internal analytics/reporting tool built by a technically strong student.

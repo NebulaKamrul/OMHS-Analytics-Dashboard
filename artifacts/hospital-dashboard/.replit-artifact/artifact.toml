@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Hospital Operations Dashboard"
+version = "1.0.0"
+id = "artifacts/hospital-dashboard"
+router = "path"
+
+[[integratedSkills]]
+name = "data-visualization"
+version = "1.0.0"
+
+[[services]]
+localPort = 19599
+name = "web"
+paths = ["/"]
+
+[services.development]
+run = "pnpm --filter @workspace/hospital-dashboard run dev"
+
+[services.env]
+PORT = "19599"
+BASE_PATH = "/"
+
+[services.production]
+build = ["pnpm", "--filter", "@workspace/hospital-dashboard", "run", "build"]
+publicDir = "artifacts/hospital-dashboard/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"

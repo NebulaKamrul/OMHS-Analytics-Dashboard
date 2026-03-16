@@ -1,15 +1,18 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Hospital Operations Analytics API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: dashboard
+    description: Dashboard analytics endpoints
+  - name: departments
+    description: Department reference data
 paths:
   /healthz:
     get:
@@ -24,7 +27,185 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /departments:
+    get:
+      operationId: getDepartments
+      tags: [departments]
+      summary: List departments
+      description: Returns all hospital departments for filter dropdowns
+      responses:
+        "200":
+          description: List of departments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Department"
+
+  /dashboard/kpis:
+    get:
+      operationId: getDashboardKpis
+      tags: [dashboard]
+      summary: Dashboard KPI cards
+      description: Returns top-level KPI metrics for the dashboard header cards
+      parameters:
+        - $ref: "#/components/parameters/startDate"
+        - $ref: "#/components/parameters/endDate"
+        - $ref: "#/components/parameters/departmentId"
+      responses:
+        "200":
+          description: KPI metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardKpis"
+
+  /dashboard/admissions-by-month:
+    get:
+      operationId: getAdmissionsByMonth
+      tags: [dashboard]
+      summary: Admissions trend by month
+      description: Monthly admissions count for trend chart
+      parameters:
+        - $ref: "#/components/parameters/startDate"
+        - $ref: "#/components/parameters/endDate"
+        - $ref: "#/components/parameters/departmentId"
+      responses:
+        "200":
+          description: Monthly admissions data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdmissionsByMonth"
+
+  /dashboard/appointments-by-department:
+    get:
+      operationId: getAppointmentsByDepartment
+      tags: [dashboard]
+      summary: Appointment volumes by department
+      description: Total appointments grouped by department for bar chart
+      parameters:
+        - $ref: "#/components/parameters/startDate"
+        - $ref: "#/components/parameters/endDate"
+        - $ref: "#/components/parameters/departmentId"
+      responses:
+        "200":
+          description: Appointments by department
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AppointmentsByDepartment"
+
+  /dashboard/occupancy-by-department:
+    get:
+      operationId: getOccupancyByDepartment
+      tags: [dashboard]
+      summary: Bed occupancy rate by department
+      description: Current bed occupancy rate per department for bar chart
+      parameters:
+        - $ref: "#/components/parameters/startDate"
+        - $ref: "#/components/parameters/endDate"
+        - $ref: "#/components/parameters/departmentId"
+      responses:
+        "200":
+          description: Occupancy rates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OccupancyByDepartment"
+
+  /dashboard/avg-length-of-stay:
+    get:
+      operationId: getAvgLengthOfStay
+      tags: [dashboard]
+      summary: Average length of stay by department
+      description: Average patient length of stay in days, by department
+      parameters:
+        - $ref: "#/components/parameters/startDate"
+        - $ref: "#/components/parameters/endDate"
+        - $ref: "#/components/parameters/departmentId"
+      responses:
+        "200":
+          description: Average length of stay data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AvgLengthOfStay"
+
+  /dashboard/discharge-trends:
+    get:
+      operationId: getDischargeTrends
+      tags: [dashboard]
+      summary: Discharge counts by week
+      description: Weekly discharge volume for trend analysis
+      parameters:
+        - $ref: "#/components/parameters/startDate"
+        - $ref: "#/components/parameters/endDate"
+        - $ref: "#/components/parameters/departmentId"
+      responses:
+        "200":
+          description: Weekly discharge trends
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DischargeTrend"
+
+  /dashboard/report:
+    get:
+      operationId: getDashboardReport
+      tags: [dashboard]
+      summary: Full admissions report table
+      description: Detailed tabular data for the report view, filterable and exportable
+      parameters:
+        - $ref: "#/components/parameters/startDate"
+        - $ref: "#/components/parameters/endDate"
+        - $ref: "#/components/parameters/departmentId"
+      responses:
+        "200":
+          description: Report rows
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReportRow"
+
 components:
+  parameters:
+    startDate:
+      name: startDate
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Filter start date (ISO 8601, e.g. 2024-01-01)
+    endDate:
+      name: endDate
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Filter end date (ISO 8601, e.g. 2024-12-31)
+    departmentId:
+      name: departmentId
+      in: query
+      required: false
+      schema:
+        type: ["integer", "null"]
+      description: Filter by department ID (omit for all departments)
+
   schemas:
     HealthStatus:
       type: object
@@ -34,3 +215,142 @@ components:
       required:
         - status
 
+    Department:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        code:
+          type: string
+        totalBeds:
+          type: integer
+        staffCount:
+          type: integer
+      required:
+        - id
+        - name
+        - code
+        - totalBeds
+        - staffCount
+
+    DashboardKpis:
+      type: object
+      properties:
+        totalAdmissions:
+          type: integer
+        avgLengthOfStay:
+          type: number
+        bedOccupancyRate:
+          type: number
+        staffPatientRatio:
+          type: number
+        totalDischarges:
+          type: integer
+        totalAppointments:
+          type: integer
+      required:
+        - totalAdmissions
+        - avgLengthOfStay
+        - bedOccupancyRate
+        - staffPatientRatio
+        - totalDischarges
+        - totalAppointments
+
+    AdmissionsByMonth:
+      type: object
+      properties:
+        month:
+          type: string
+          description: "YYYY-MM format"
+        admissions:
+          type: integer
+      required:
+        - month
+        - admissions
+
+    AppointmentsByDepartment:
+      type: object
+      properties:
+        department:
+          type: string
+        appointments:
+          type: integer
+        completed:
+          type: integer
+        cancelled:
+          type: integer
+      required:
+        - department
+        - appointments
+        - completed
+        - cancelled
+
+    OccupancyByDepartment:
+      type: object
+      properties:
+        department:
+          type: string
+        occupancyRate:
+          type: number
+          description: Percentage 0-100
+        occupiedBeds:
+          type: integer
+        totalBeds:
+          type: integer
+      required:
+        - department
+        - occupancyRate
+        - occupiedBeds
+        - totalBeds
+
+    AvgLengthOfStay:
+      type: object
+      properties:
+        department:
+          type: string
+        avgDays:
+          type: number
+      required:
+        - department
+        - avgDays
+
+    DischargeTrend:
+      type: object
+      properties:
+        week:
+          type: string
+          description: "ISO week start date YYYY-MM-DD"
+        discharges:
+          type: integer
+      required:
+        - week
+        - discharges
+
+    ReportRow:
+      type: object
+      properties:
+        admissionId:
+          type: integer
+        patientName:
+          type: string
+        department:
+          type: string
+        admissionDate:
+          type: string
+        dischargeDate:
+          type: ["string", "null"]
+        lengthOfStay:
+          type: ["integer", "null"]
+        status:
+          type: string
+          description: "admitted | discharged"
+      required:
+        - admissionId
+        - patientName
+        - department
+        - admissionDate
+        - dischargeDate
+        - lengthOfStay
+        - status
