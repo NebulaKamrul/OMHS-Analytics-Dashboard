@@ -1,0 +1,274 @@
+Build a professional Business Intelligence dashboard web application for a hospital operations analytics use case.
+
+The goal is to simulate an internal analytics/reporting tool that hospital leadership could use to monitor operational performance. This project is intended for a technical internship portfolio, so it should prioritize realism, clarity, proper data modeling, and strong engineering practices rather than flashy UI or startup-style aesthetics.
+
+This project should feel like an internal analytics tool used by analysts, operations managers, or BI teams in a healthcare organization.
+
+-----------------------------------
+
+PROJECT GOALS
+
+This project should demonstrate:
+
+• relational data modeling
+• SQL-based analytics queries
+• dashboard reporting
+• data visualization
+• filterable reports
+• enterprise-grade UI discipline
+• clear backend data flow
+• structured architecture
+
+-----------------------------------
+
+DATA MODEL
+
+Use PostgreSQL with a realistic relational schema.
+
+Tables should include:
+
+departments
+- id
+- name
+
+patients
+- id
+- age
+- gender
+
+admissions
+- id
+- patient_id
+- department_id
+- admission_date
+- discharge_date
+
+appointments
+- id
+- department_id
+- appointment_date
+
+staff
+- id
+- department_id
+- role
+
+beds
+- id
+- department_id
+- occupied
+
+Requirements:
+
+• Proper primary keys
+• Foreign key relationships
+• Normalized schema
+• Logical relationships between tables
+• Schema should be easy to explain in an interview
+
+-----------------------------------
+
+SEED DATA
+
+Generate realistic synthetic data across departments such as:
+
+• Psychiatry
+• Emergency
+• Outpatient Services
+• Mental Health Programs
+• Community Care
+
+Seed enough historical data (multiple months) to generate meaningful trends and analytics.
+
+-----------------------------------
+
+ANALYTICS METRICS
+
+The dashboard should calculate and display operational metrics such as:
+
+• total admissions
+• admissions trend over time
+• appointment volume by department
+• bed occupancy rate
+• average length of stay
+• discharge counts
+• department utilization
+
+All metrics must be generated using SQL queries.
+
+Examples of SQL logic:
+
+• admissions per month
+• average length of stay
+• appointments grouped by department
+• occupancy rate by department
+
+-----------------------------------
+
+DASHBOARD FEATURES
+
+Interface should include:
+
+KPI cards
+• Admissions this month
+• Bed occupancy rate
+• Total appointments
+• Average length of stay
+
+Charts
+• Line chart — admissions trend
+• Bar chart — appointments by department
+• Department utilization
+• Discharge trends
+
+Filters
+• Date range filter
+• Department filter
+
+Reporting
+• Table view of operational data
+• Export table data to CSV (if possible)
+
+-----------------------------------
+
+TECH STACK
+
+Frontend
+React
+TypeScript
+Tailwind CSS
+
+Backend
+Express.js
+TypeScript
+
+Database
+PostgreSQL
+
+Charts
+Use a standard charting library suitable for BI dashboards.
+
+-----------------------------------
+
+DATA FLOW
+
+Structure the architecture clearly:
+
+database → SQL queries → backend API → frontend dashboard
+
+Each chart must be powered by a real SQL aggregation query.
+
+The code should be structured so it is easy to explain in an interview.
+
+-----------------------------------
+
+DESIGN SYSTEM REQUIREMENT
+
+Create a small design system first.
+
+Define:
+
+• spacing scale
+• typography scale
+• color tokens
+• border radius tokens
+• animation rules
+
+All components must reference these tokens.
+
+Avoid ad-hoc styling.
+
+-----------------------------------
+
+STRICT DESIGN RULES
+
+Avoid vibe-coded website patterns.
+
+COLORS & VISUAL
+
+• No default purple gradients unless brand-appropriate
+• No sparkles or emojis in headings
+• No glowing hover effects
+• Use neutral enterprise palette
+• Maintain consistent contrast
+
+TYPOGRAPHY
+
+• Define a consistent type scale
+• Avoid oversized headings with ultra-thin body text
+• Maintain consistent line height
+• Maintain consistent paragraph spacing
+• Enforce clear hierarchy
+
+LAYOUT & COMPONENTS
+
+• Consistent component placement across pages
+• Define and reuse 2-3 border radius values maximum
+• Subtle hover states only (2-4px lift max)
+• Icons scaled proportionally to text
+• Remove non-functional social icons
+• Avoid decorative UI elements with no functional purpose
+
+ANIMATIONS & INTERACTIONS
+
+• Use easing curves (cubic-bezier)
+• Stagger timing intentionally
+• Animations must serve a UX purpose
+• Avoid decorative animation
+
+UX BEHAVIORS
+
+• Loading states for all async actions
+• Progress indicators for long operations
+• Skeleton screens for data-heavy sections
+• Functional filters and interactions
+
+COPYWRITING
+
+Avoid startup marketing language.
+
+Do NOT use phrases like:
+• "Launch faster"
+• "Build your dreams"
+• "Create without limits"
+
+Avoid:
+
+• fake testimonials
+• generic placeholder people
+• stock “AI faces”
+
+-----------------------------------
+
+INTERVIEW-READINESS
+
+Structure the repository so the following can be explained clearly:
+
+• the relational schema
+• how SQL queries generate metrics
+• how filters modify queries
+• how backend APIs serve analytics data
+• how the frontend visualizes metrics
+
+-----------------------------------
+
+README
+
+Generate a README explaining:
+
+• system architecture
+• database schema
+• example SQL queries
+• KPI definitions
+• how to run the project
+
+-----------------------------------
+
+RESUME DESCRIPTION
+
+Also generate a short resume bullet description for this project demonstrating:
+
+• SQL analytics
+• BI dashboard development
+• data modeling
+• operational reporting
