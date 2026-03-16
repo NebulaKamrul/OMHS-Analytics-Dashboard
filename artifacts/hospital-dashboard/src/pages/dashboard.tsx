@@ -286,6 +286,44 @@ export default function Dashboard() {
       {/* ── Main ────────────────────────────────────────────────────────── */}
       <main style={{ maxWidth:1400, margin:"0 auto", padding:"var(--space-6) var(--space-8) var(--space-8)" }}>
 
+        {/* About */}
+        <section style={{ marginBottom:"var(--space-6)" }}>
+          <div style={{ background:"var(--color-surface)", border:"1px solid var(--color-border)", borderRadius:"var(--radius-md)", padding:"var(--space-5) var(--space-6)", display:"flex", alignItems:"flex-start", gap:"var(--space-5)", boxShadow:"var(--shadow-card)" }}>
+            <div style={{ flexShrink:0, width:36, height:36, borderRadius:"var(--radius-md)", background:"var(--color-accent-light)", border:"1px solid #bfdbfe", display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <svg width="17" height="17" viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="10" r="9" stroke="#1d4ed8" strokeWidth="1.5"/>
+                <rect x="9.25" y="8.5" width="1.5" height="6" rx="0.5" fill="#1d4ed8"/>
+                <circle cx="10" cy="6.5" r="1" fill="#1d4ed8"/>
+              </svg>
+            </div>
+            <div>
+              <p style={{ fontSize:13, fontWeight:600, color:"var(--color-text-primary)", margin:"0 0 5px" }}>
+                About this Dashboard
+              </p>
+              <p style={{ fontSize:12, color:"var(--color-text-secondary)", margin:"0 0 10px", lineHeight:1.6, maxWidth:900 }}>
+                This dashboard analyzes the geographic and demographic distribution of Ontario mental health and addiction services using publicly released government data. It covers service availability across 50 counties, eligibility by age and gender, bilingual access, LGBTQ+ affirming services, and harm reduction approaches. Use the filters above to explore any subset of the data: all charts and totals update in real time.
+              </p>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:"var(--space-4)", alignItems:"center" }}>
+                <span style={{ fontSize:11, color:"var(--color-text-muted)" }}>
+                  <span style={{ fontWeight:600, color:"var(--color-text-secondary)" }}>Dataset:</span> KHP 2019 MOH Open Data Export
+                </span>
+                <span style={{ color:"var(--color-border)", fontSize:11 }}>·</span>
+                <span style={{ fontSize:11, color:"var(--color-text-muted)" }}>
+                  <span style={{ fontWeight:600, color:"var(--color-text-secondary)" }}>Source:</span> Ontario Ministry of Health via Kids Help Phone
+                </span>
+                <span style={{ color:"var(--color-border)", fontSize:11 }}>·</span>
+                <span style={{ fontSize:11, color:"var(--color-text-muted)" }}>
+                  <span style={{ fontWeight:600, color:"var(--color-text-secondary)" }}>Records:</span> 5,945 service listings · 140+ fields
+                </span>
+                <span style={{ color:"var(--color-border)", fontSize:11 }}>·</span>
+                <span style={{ fontSize:11, color:"var(--color-text-muted)" }}>
+                  <span style={{ fontWeight:600, color:"var(--color-text-secondary)" }}>Coverage:</span> Ontario, Canada · 2019
+                </span>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* KPIs */}
         <section style={{ marginBottom:"var(--space-6)" }}>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(170px,1fr))", gap:"var(--space-4)" }}>
