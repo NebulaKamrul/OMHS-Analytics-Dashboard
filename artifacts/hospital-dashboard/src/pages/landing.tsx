@@ -91,8 +91,14 @@ export default function Landing() {
       </main>
 
       {/* ── Footer ────────────────────────────────────────────────────── */}
-      <footer style={{ borderTop:"1px solid var(--color-border-subtle)", padding:"var(--space-5) var(--space-8)", textAlign:"center", fontSize:11, color:"var(--color-text-muted)", fontFamily:"var(--font-sans)" }}>
-        Data source: Kids Help Phone · Ontario Ministry of Health Open Data Export, 2019 · For internal analytics use only
+      <footer style={{ borderTop:"1px solid var(--color-border-subtle)", padding:"var(--space-5) var(--space-8)", textAlign:"center", fontSize:11, color:"var(--color-text-muted)", fontFamily:"var(--font-sans)", display:"flex", flexDirection:"column", gap:6, alignItems:"center" }}>
+        <span>Data source: Kids Help Phone · Ontario Ministry of Health Open Data Export, 2019 · For internal analytics use only</span>
+        <a
+          href={`${import.meta.env.BASE_URL}khp_2019_moh_export.xlsx`}
+          download
+          style={{ color:"var(--color-accent)", textDecoration:"none", fontWeight:500, fontSize:11 }}>
+          ↓ Download source dataset (.xlsx)
+        </a>
       </footer>
 
     </div>
