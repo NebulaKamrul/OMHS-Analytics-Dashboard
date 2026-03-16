@@ -9,6 +9,7 @@
  */
 
 import { useState } from "react";
+import { useLocation } from "wouter";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
@@ -160,6 +161,7 @@ function BoolCell({ value }: { value?:boolean|null }) {
 }
 
 export default function Dashboard() {
+  const [, navigate] = useLocation();
   const [filters, setFilters] = useState<Filters>({});
   const [search, setSearch]   = useState("");
   const [tab, setTab]         = useState<"charts"|"report">("charts");
@@ -226,7 +228,7 @@ export default function Dashboard() {
       }}>
         <div style={{ maxWidth:1400, width:"100%", margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
 
-          <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <button onClick={() => navigate("/")} style={{ display:"flex", alignItems:"center", gap:12, background:"none", border:"none", cursor:"pointer", padding:0 }}>
             <div style={{ width:30, height:30, borderRadius:4, background:"var(--color-accent)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
                 <rect x="1" y="7" width="3" height="8" fill="white" rx="0.5"/>
@@ -234,7 +236,7 @@ export default function Dashboard() {
                 <rect x="11" y="1" width="3" height="14" fill="white" rx="0.5"/>
               </svg>
             </div>
-            <div>
+            <div style={{ textAlign:"left" }}>
               <h1 style={{ fontSize:15, fontWeight:700, fontFamily:SERIF, color:"var(--color-text-primary)", margin:0, lineHeight:1.2 }}>
                 Ontario Mental Health Services
               </h1>
@@ -242,7 +244,7 @@ export default function Dashboard() {
                 KHP 2019 MOH Export · {kpis?.totalServices?.toLocaleString() ?? "5,945"} records
               </p>
             </div>
-          </div>
+          </button>
 
           <nav style={{ display:"flex", gap:28, alignItems:"center" }}>
             {(["charts","report"] as const).map(t => (
@@ -295,42 +297,6 @@ export default function Dashboard() {
       {/* ── Main ────────────────────────────────────────────────────────── */}
       <main style={{ maxWidth:1400, margin:"0 auto", padding:"var(--space-6) var(--space-8) var(--space-10)" }}>
 
-        {/* About */}
-        <section style={{ marginBottom:"var(--space-6)" }}>
-          <div style={{ background:"var(--color-surface)", border:"1px solid var(--color-border)", borderRadius:6, padding:"var(--space-5) var(--space-6)", display:"flex", alignItems:"flex-start", gap:"var(--space-5)" }}>
-            <div style={{ flexShrink:0, width:34, height:34, borderRadius:4, background:"var(--color-accent-light)", border:"1px solid #e0cdb8", display:"flex", alignItems:"center", justifyContent:"center" }}>
-              <svg width="15" height="15" viewBox="0 0 20 20" fill="none">
-                <circle cx="10" cy="10" r="9" stroke="var(--color-accent)" strokeWidth="1.5"/>
-                <rect x="9.25" y="8.5" width="1.5" height="6" rx="0.5" fill="var(--color-accent)"/>
-                <circle cx="10" cy="6.5" r="1" fill="var(--color-accent)"/>
-              </svg>
-            </div>
-            <div>
-              <p style={{ fontSize:13, fontWeight:700, fontFamily:SERIF, color:"var(--color-text-primary)", margin:"0 0 5px" }}>
-                About this Dashboard
-              </p>
-              <p style={{ fontSize:12, color:"var(--color-text-secondary)", margin:"0 0 10px", lineHeight:1.7, maxWidth:920, fontFamily:"var(--font-sans)" }}>
-                This dashboard analyzes the geographic and demographic distribution of Ontario mental health and addiction services using publicly released government data. It covers service availability across 50 counties, eligibility by age and gender, bilingual access, LGBTQ+ affirming services, and harm reduction approaches. Use the filters above to explore any subset of the data: all charts and totals update in real time.
-              </p>
-              <div style={{ display:"flex", flexWrap:"wrap", gap:"var(--space-4)", alignItems:"center" }}>
-                {[
-                  ["Dataset", "KHP 2019 MOH Open Data Export"],
-                  ["Source",  "Ontario Ministry of Health via Kids Help Phone"],
-                  ["Records", "5,945 service listings · 140+ fields"],
-                  ["Coverage","Ontario, Canada · 2019"],
-                ].map(([k,v], i, arr) => (
-                  <span key={k} style={{ display:"flex", alignItems:"center", gap:"var(--space-4)" }}>
-                    <span style={{ fontSize:11, color:"var(--color-text-muted)", fontFamily:"var(--font-sans)" }}>
-                      <span style={{ fontWeight:600, color:"var(--color-text-secondary)" }}>{k}:</span> {v}
-                    </span>
-                    {i < arr.length-1 && <span style={{ color:"var(--color-border)", fontSize:11 }}>·</span>}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
         {/* KPIs */}
         <section style={{ marginBottom:"var(--space-6)" }}>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(170px,1fr))", gap:"var(--space-4)" }}>
@@ -342,7 +308,7 @@ export default function Dashboard() {
                 <KpiCard label="Counties"         value={kpis?.totalCounties}         sub="Geographic regions covered" delay={50}  />
                 <KpiCard label="Bilingual"        value={kpis?.bilingualServices}     sub="EN/FR service delivery"     delay={100} />
                 <KpiCard label="LGBTQ+ Affirming" value={kpis?.lgbtqServices}         sub="Inclusive support services" delay={150} />
-                <KpiCard label="Harm Reduction"   value={kpis?.harmReductionServices} sub="Harm reduction approach"    delay={200} />
+                <KpiCard label="Harm Reduction"   value={kpis?.harmReductionServices} sub="Explicitly flagged in dataset" delay={200} />
               </>
             )}
           </div>
