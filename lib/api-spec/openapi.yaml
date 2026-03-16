@@ -2,24 +2,23 @@ openapi: 3.1.0
 info:
   title: Api
   version: 0.1.0
-  description: Hospital Operations Analytics API
+  description: Ontario Mental Health Services Analytics API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
-  - name: dashboard
+  - name: analytics
     description: Dashboard analytics endpoints
-  - name: departments
-    description: Department reference data
+  - name: filters
+    description: Filter option endpoints
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -28,183 +27,228 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
 
-  /departments:
+  /filters/counties:
     get:
-      operationId: getDepartments
-      tags: [departments]
-      summary: List departments
-      description: Returns all hospital departments for filter dropdowns
+      operationId: getFilterCounties
+      tags: [filters]
+      summary: List distinct counties
       responses:
         "200":
-          description: List of departments
+          description: List of county names
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/Department"
+                  type: string
 
-  /dashboard/kpis:
+  /filters/taxonomy-terms:
     get:
-      operationId: getDashboardKpis
-      tags: [dashboard]
+      operationId: getFilterTaxonomyTerms
+      tags: [filters]
+      summary: List distinct taxonomy terms
+      responses:
+        "200":
+          description: List of taxonomy term names
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
+  /analytics/kpis:
+    get:
+      operationId: getAnalyticsKpis
+      tags: [analytics]
       summary: Dashboard KPI cards
-      description: Returns top-level KPI metrics for the dashboard header cards
       parameters:
-        - $ref: "#/components/parameters/startDate"
-        - $ref: "#/components/parameters/endDate"
-        - $ref: "#/components/parameters/departmentId"
+        - $ref: "#/components/parameters/county"
+        - $ref: "#/components/parameters/taxonomyTerm"
+        - $ref: "#/components/parameters/bilingual"
+        - $ref: "#/components/parameters/lgbtq"
+        - $ref: "#/components/parameters/harmReduction"
+        - $ref: "#/components/parameters/ageGroup"
+        - $ref: "#/components/parameters/gender"
       responses:
         "200":
           description: KPI metrics
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DashboardKpis"
+                $ref: "#/components/schemas/AnalyticsKpis"
 
-  /dashboard/admissions-by-month:
+  /analytics/services-by-category:
     get:
-      operationId: getAdmissionsByMonth
-      tags: [dashboard]
-      summary: Admissions trend by month
-      description: Monthly admissions count for trend chart
+      operationId: getServicesByCategory
+      tags: [analytics]
+      summary: Service count by taxonomy term (top 15)
       parameters:
-        - $ref: "#/components/parameters/startDate"
-        - $ref: "#/components/parameters/endDate"
-        - $ref: "#/components/parameters/departmentId"
+        - $ref: "#/components/parameters/county"
+        - $ref: "#/components/parameters/bilingual"
+        - $ref: "#/components/parameters/lgbtq"
+        - $ref: "#/components/parameters/harmReduction"
+        - $ref: "#/components/parameters/ageGroup"
+        - $ref: "#/components/parameters/gender"
       responses:
         "200":
-          description: Monthly admissions data
+          description: Services grouped by taxonomy category
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/AdmissionsByMonth"
+                  $ref: "#/components/schemas/CategoryCount"
 
-  /dashboard/appointments-by-department:
+  /analytics/services-by-county:
     get:
-      operationId: getAppointmentsByDepartment
-      tags: [dashboard]
-      summary: Appointment volumes by department
-      description: Total appointments grouped by department for bar chart
+      operationId: getServicesByCounty
+      tags: [analytics]
+      summary: Service count by county (top 20)
       parameters:
-        - $ref: "#/components/parameters/startDate"
-        - $ref: "#/components/parameters/endDate"
-        - $ref: "#/components/parameters/departmentId"
+        - $ref: "#/components/parameters/taxonomyTerm"
+        - $ref: "#/components/parameters/bilingual"
+        - $ref: "#/components/parameters/lgbtq"
+        - $ref: "#/components/parameters/harmReduction"
+        - $ref: "#/components/parameters/ageGroup"
+        - $ref: "#/components/parameters/gender"
       responses:
         "200":
-          description: Appointments by department
+          description: Services grouped by county
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/AppointmentsByDepartment"
+                  $ref: "#/components/schemas/CountyCount"
 
-  /dashboard/occupancy-by-department:
+  /analytics/eligibility-by-age:
     get:
-      operationId: getOccupancyByDepartment
-      tags: [dashboard]
-      summary: Bed occupancy rate by department
-      description: Current bed occupancy rate per department for bar chart
+      operationId: getEligibilityByAge
+      tags: [analytics]
+      summary: Service count by age eligibility group
       parameters:
-        - $ref: "#/components/parameters/startDate"
-        - $ref: "#/components/parameters/endDate"
-        - $ref: "#/components/parameters/departmentId"
+        - $ref: "#/components/parameters/county"
+        - $ref: "#/components/parameters/taxonomyTerm"
       responses:
         "200":
-          description: Occupancy rates
+          description: Age eligibility distribution
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/OccupancyByDepartment"
+                  $ref: "#/components/schemas/AgeGroupCount"
 
-  /dashboard/avg-length-of-stay:
+  /analytics/eligibility-by-gender:
     get:
-      operationId: getAvgLengthOfStay
-      tags: [dashboard]
-      summary: Average length of stay by department
-      description: Average patient length of stay in days, by department
+      operationId: getEligibilityByGender
+      tags: [analytics]
+      summary: Service count by gender eligibility
       parameters:
-        - $ref: "#/components/parameters/startDate"
-        - $ref: "#/components/parameters/endDate"
-        - $ref: "#/components/parameters/departmentId"
+        - $ref: "#/components/parameters/county"
+        - $ref: "#/components/parameters/taxonomyTerm"
       responses:
         "200":
-          description: Average length of stay data
+          description: Gender eligibility distribution
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/AvgLengthOfStay"
+                  $ref: "#/components/schemas/GenderCount"
 
-  /dashboard/discharge-trends:
+  /analytics/language-distribution:
     get:
-      operationId: getDischargeTrends
-      tags: [dashboard]
-      summary: Discharge counts by week
-      description: Weekly discharge volume for trend analysis
+      operationId: getLanguageDistribution
+      tags: [analytics]
+      summary: Bilingual vs English-only vs French-only service counts
       parameters:
-        - $ref: "#/components/parameters/startDate"
-        - $ref: "#/components/parameters/endDate"
-        - $ref: "#/components/parameters/departmentId"
+        - $ref: "#/components/parameters/county"
+        - $ref: "#/components/parameters/taxonomyTerm"
       responses:
         "200":
-          description: Weekly discharge trends
+          description: Language distribution
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/DischargeTrend"
+                  $ref: "#/components/schemas/LanguageCount"
 
-  /dashboard/report:
+  /analytics/services-report:
     get:
-      operationId: getDashboardReport
-      tags: [dashboard]
-      summary: Full admissions report table
-      description: Detailed tabular data for the report view, filterable and exportable
+      operationId: getServicesReport
+      tags: [analytics]
+      summary: Filterable services table for report view
       parameters:
-        - $ref: "#/components/parameters/startDate"
-        - $ref: "#/components/parameters/endDate"
-        - $ref: "#/components/parameters/departmentId"
+        - $ref: "#/components/parameters/county"
+        - $ref: "#/components/parameters/taxonomyTerm"
+        - $ref: "#/components/parameters/bilingual"
+        - $ref: "#/components/parameters/lgbtq"
+        - $ref: "#/components/parameters/harmReduction"
+        - $ref: "#/components/parameters/ageGroup"
+        - $ref: "#/components/parameters/gender"
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Free-text search on service name
       responses:
         "200":
-          description: Report rows
+          description: Filtered service records
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/ReportRow"
+                  $ref: "#/components/schemas/ServiceRecord"
 
 components:
   parameters:
-    startDate:
-      name: startDate
+    county:
+      name: county
       in: query
       required: false
       schema:
         type: string
-      description: Filter start date (ISO 8601, e.g. 2024-01-01)
-    endDate:
-      name: endDate
+    taxonomyTerm:
+      name: taxonomyTerm
       in: query
       required: false
       schema:
         type: string
-      description: Filter end date (ISO 8601, e.g. 2024-12-31)
-    departmentId:
-      name: departmentId
+    bilingual:
+      name: bilingual
       in: query
       required: false
       schema:
-        type: ["integer", "null"]
-      description: Filter by department ID (omit for all departments)
+        type: string
+    lgbtq:
+      name: lgbtq
+      in: query
+      required: false
+      schema:
+        type: string
+    harmReduction:
+      name: harmReduction
+      in: query
+      required: false
+      schema:
+        type: string
+    ageGroup:
+      name: ageGroup
+      in: query
+      required: false
+      schema:
+        type: string
+    gender:
+      name: gender
+      in: query
+      required: false
+      schema:
+        type: string
 
   schemas:
     HealthStatus:
@@ -212,145 +256,119 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
-    Department:
+    AnalyticsKpis:
+      type: object
+      properties:
+        totalServices:
+          type: integer
+        totalCounties:
+          type: integer
+        bilingualServices:
+          type: integer
+        lgbtqServices:
+          type: integer
+        harmReductionServices:
+          type: integer
+      required:
+        - totalServices
+        - totalCounties
+        - bilingualServices
+        - lgbtqServices
+        - harmReductionServices
+
+    CategoryCount:
+      type: object
+      properties:
+        category:
+          type: string
+        count:
+          type: integer
+      required: [category, count]
+
+    CountyCount:
+      type: object
+      properties:
+        county:
+          type: string
+        count:
+          type: integer
+      required: [county, count]
+
+    AgeGroupCount:
+      type: object
+      properties:
+        ageGroup:
+          type: string
+        count:
+          type: integer
+      required: [ageGroup, count]
+
+    GenderCount:
+      type: object
+      properties:
+        gender:
+          type: string
+        count:
+          type: integer
+      required: [gender, count]
+
+    LanguageCount:
+      type: object
+      properties:
+        language:
+          type: string
+        count:
+          type: integer
+      required: [language, count]
+
+    ServiceRecord:
       type: object
       properties:
         id:
           type: integer
-        name:
-          type: string
-        code:
-          type: string
-        totalBeds:
-          type: integer
-        staffCount:
-          type: integer
+        publicName:
+          type: ["string", "null"]
+        officialName:
+          type: ["string", "null"]
+        category:
+          type: ["string", "null"]
+        physicalCity:
+          type: ["string", "null"]
+        physicalCounty:
+          type: ["string", "null"]
+        eligibilityByAge:
+          type: ["string", "null"]
+        eligibilityAgeGroup:
+          type: ["string", "null"]
+        eligibilityByGender:
+          type: ["string", "null"]
+        languagesOfferedList:
+          type: ["string", "null"]
+        bilingualService:
+          type: ["boolean", "null"]
+        lgbtqSupport:
+          type: ["boolean", "null"]
+        harmReduction:
+          type: ["boolean", "null"]
+        normalWaitTime:
+          type: ["string", "null"]
+        websiteAddress:
+          type: ["string", "null"]
       required:
         - id
-        - name
-        - code
-        - totalBeds
-        - staffCount
-
-    DashboardKpis:
-      type: object
-      properties:
-        totalAdmissions:
-          type: integer
-        avgLengthOfStay:
-          type: number
-        bedOccupancyRate:
-          type: number
-        staffPatientRatio:
-          type: number
-        totalDischarges:
-          type: integer
-        totalAppointments:
-          type: integer
-      required:
-        - totalAdmissions
-        - avgLengthOfStay
-        - bedOccupancyRate
-        - staffPatientRatio
-        - totalDischarges
-        - totalAppointments
-
-    AdmissionsByMonth:
-      type: object
-      properties:
-        month:
-          type: string
-          description: "YYYY-MM format"
-        admissions:
-          type: integer
-      required:
-        - month
-        - admissions
-
-    AppointmentsByDepartment:
-      type: object
-      properties:
-        department:
-          type: string
-        appointments:
-          type: integer
-        completed:
-          type: integer
-        cancelled:
-          type: integer
-      required:
-        - department
-        - appointments
-        - completed
-        - cancelled
-
-    OccupancyByDepartment:
-      type: object
-      properties:
-        department:
-          type: string
-        occupancyRate:
-          type: number
-          description: Percentage 0-100
-        occupiedBeds:
-          type: integer
-        totalBeds:
-          type: integer
-      required:
-        - department
-        - occupancyRate
-        - occupiedBeds
-        - totalBeds
-
-    AvgLengthOfStay:
-      type: object
-      properties:
-        department:
-          type: string
-        avgDays:
-          type: number
-      required:
-        - department
-        - avgDays
-
-    DischargeTrend:
-      type: object
-      properties:
-        week:
-          type: string
-          description: "ISO week start date YYYY-MM-DD"
-        discharges:
-          type: integer
-      required:
-        - week
-        - discharges
-
-    ReportRow:
-      type: object
-      properties:
-        admissionId:
-          type: integer
-        patientName:
-          type: string
-        department:
-          type: string
-        admissionDate:
-          type: string
-        dischargeDate:
-          type: ["string", "null"]
-        lengthOfStay:
-          type: ["integer", "null"]
-        status:
-          type: string
-          description: "admitted | discharged"
-      required:
-        - admissionId
-        - patientName
-        - department
-        - admissionDate
-        - dischargeDate
-        - lengthOfStay
-        - status
+        - publicName
+        - officialName
+        - category
+        - physicalCity
+        - physicalCounty
+        - eligibilityByAge
+        - eligibilityAgeGroup
+        - eligibilityByGender
+        - languagesOfferedList
+        - bilingualService
+        - lgbtqSupport
+        - harmReduction
+        - normalWaitTime
+        - websiteAddress

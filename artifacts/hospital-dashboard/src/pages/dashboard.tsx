@@ -1,651 +1,434 @@
-import { useState, useEffect, useRef, useMemo } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { CSVLink } from "react-csv";
-import { format } from "date-fns";
+/**
+ * Ontario Mental Health Services — Analytics Dashboard
+ *
+ * Data flow:
+ *   Excel (KHP 2019 MOH) → PostgreSQL → Express API → React Query → UI
+ *
+ * All chart data comes from real SQL aggregation queries.
+ * Filters propagate to every query so all panels stay consistent.
+ */
+
+import { useState } from "react";
 import {
-  AreaChart, Area, BarChart, Bar, LineChart, Line,
-  XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from "recharts";
 import {
-  useReactTable,
-  getCoreRowModel,
-  getSortedRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  flexRender,
-  type ColumnDef,
-  type SortingState,
-} from "@tanstack/react-table";
-import {
-  Calendar, RefreshCw, ChevronDown, Check,
-  Sun, Moon, Download, Printer, ArrowUp, ArrowDown, Building2
-} from "lucide-react";
-
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-
-import {
-  useGetDepartments,
-  useGetDashboardKpis,
-  useGetAdmissionsByMonth,
-  useGetAppointmentsByDepartment,
-  useGetOccupancyByDepartment,
-  useGetAvgLengthOfStay,
-  useGetDischargeTrends,
-  useGetDashboardReport,
+  useGetAnalyticsKpis,
+  useGetServicesByCategory,
+  useGetServicesByCounty,
+  useGetEligibilityByAge,
+  useGetEligibilityByGender,
+  useGetLanguageDistribution,
+  useGetServicesReport,
+  useGetFilterCounties,
+  useGetFilterTaxonomyTerms,
 } from "@workspace/api-client-react";
 
-const CHART_COLORS = {
-  blue: "#0079F2",
-  purple: "#795EFF",
-  green: "#009118",
-  red: "#A60808",
-  pink: "#ec4899",
-};
+const CHART_COLORS = ["#1d4ed8","#2563eb","#3b82f6","#60a5fa","#93c5fd","#bfdbfe"];
+const PIE_COLORS   = ["#1d4ed8","#2563eb","#3b82f6","#60a5fa","#93c5fd","#bfdbfe"];
 
-const CHART_COLOR_LIST = [
-  CHART_COLORS.blue,
-  CHART_COLORS.purple,
-  CHART_COLORS.green,
-  CHART_COLORS.red,
-  CHART_COLORS.pink,
-];
+interface Filters {
+  county?: string;
+  taxonomyTerm?: string;
+  bilingual?: string;
+  lgbtq?: string;
+  harmReduction?: string;
+  ageGroup?: string;
+  gender?: string;
+}
 
-// --- Custom Tooltips & Legends ---
-function CustomTooltip({ active, payload, label }: any) {
-  if (!active || !payload || payload.length === 0) return null;
+const AGE_GROUPS    = ["Children (0–11)","Adolescents (12–17)","Youth & Young Adults (12–25)","Adults (18+)","All Ages"];
+const GENDER_GROUPS = ["Female Only","Male Only","All Genders"];
+
+function KpiSkeleton() {
   return (
-    <div
-      style={{
-        backgroundColor: "#fff",
-        borderRadius: "6px",
-        padding: "10px 14px",
-        border: "1px solid #e0e0e0",
-        color: "#1a1a1a",
-        fontSize: "13px",
-        boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-      }}
-    >
-      <div style={{ marginBottom: "6px", fontWeight: 500, display: "flex", alignItems: "center", gap: "6px" }}>
-        {payload.length === 1 && payload[0].color && payload[0].color !== "#ffffff" && (
-          <span style={{ display: "inline-block", width: "10px", height: "10px", borderRadius: "2px", backgroundColor: payload[0].color, flexShrink: 0 }} />
-        )}
-        {label}
-      </div>
-      {payload.map((entry: any, index: number) => (
-        <div key={index} style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "3px" }}>
-          {payload.length > 1 && entry.color && entry.color !== "#ffffff" && (
-            <span style={{ display: "inline-block", width: "10px", height: "10px", borderRadius: "2px", backgroundColor: entry.color, flexShrink: 0 }} />
-          )}
-          <span style={{ color: "#444" }}>{entry.name}</span>
-          <span style={{ marginLeft: "auto", fontWeight: 600 }}>
-            {typeof entry.value === "number" ? entry.value.toLocaleString() : entry.value}
-          </span>
-        </div>
+    <div className="card" style={{ padding:"var(--space-6)" }}>
+      <div className="skeleton" style={{ height:10, width:"60%", borderRadius:"var(--radius-sm)", marginBottom:12 }} />
+      <div className="skeleton" style={{ height:28, width:"40%", borderRadius:"var(--radius-sm)", marginBottom:8 }} />
+      <div className="skeleton" style={{ height:8, width:"70%", borderRadius:"var(--radius-sm)" }} />
+    </div>
+  );
+}
+
+function KpiCard({ label, value, sub, delay=0 }: { label:string; value?:number; sub?:string; delay?:number }) {
+  return (
+    <div className="card animate-in" style={{ padding:"var(--space-6)", animationDelay:`${delay}ms` }}>
+      <p style={{ fontSize:10, fontWeight:600, letterSpacing:"0.06em", textTransform:"uppercase", color:"var(--color-text-muted)", margin:"0 0 8px" }}>{label}</p>
+      <p style={{ fontSize:"var(--text-2xl)", fontWeight:700, color:"var(--color-text-primary)", lineHeight:1.1, margin:"0 0 4px" }}>
+        {value?.toLocaleString() ?? "—"}
+      </p>
+      {sub && <p style={{ fontSize:11, color:"var(--color-text-muted)", margin:0 }}>{sub}</p>}
+    </div>
+  );
+}
+
+function ChartSkeleton() {
+  return (
+    <div style={{ height:280, display:"flex", alignItems:"flex-end", gap:8, padding:"0 4px" }}>
+      {[80,60,90,40,70,55,85,45].map((h,i) => (
+        <div key={i} className="skeleton" style={{ flex:1, height:`${h}%`, borderRadius:"var(--radius-sm)" }} />
       ))}
     </div>
   );
 }
 
-function CustomLegend({ payload }: any) {
-  if (!payload || payload.length === 0) return null;
+function SLabel({ title, note }: { title:string; note?:string }) {
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "8px 16px", fontSize: "13px" }}>
-      {payload.map((entry: any, index: number) => (
-        <div key={index} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          <span style={{ display: "inline-block", width: "10px", height: "10px", borderRadius: "2px", backgroundColor: entry.color, flexShrink: 0 }} />
-          <span>{entry.value}</span>
-        </div>
-      ))}
+    <div style={{ marginBottom:"var(--space-4)" }}>
+      <p style={{ fontSize:"var(--text-sm)", fontWeight:600, color:"var(--color-text-primary)", margin:0 }}>{title}</p>
+      {note && <p style={{ fontSize:11, color:"var(--color-text-muted)", margin:"2px 0 0" }}>{note}</p>}
     </div>
   );
 }
 
-// --- Data Table ---
-function DataTable<T>({ data, columns }: { data: T[]; columns: ColumnDef<T>[] }) {
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const [globalFilter, setGlobalFilter] = useState("");
-
-  const table = useReactTable({
-    data,
-    columns,
-    state: { sorting, globalFilter },
-    onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 10 } },
-  });
-
+function TTip({ active, payload, label }: { active?:boolean; payload?:Array<{value:number}>; label?:string }) {
+  if (!active || !payload?.length) return null;
   return (
-    <div className="space-y-4">
-      <Input
-        placeholder="Search all columns..."
-        value={globalFilter}
-        onChange={(e) => setGlobalFilter(e.target.value)}
-        className="max-w-sm"
-      />
-
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none">
-                    <div className="flex items-center gap-2">
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                      {{ asc: " 🔼", desc: " 🔽" }[header.column.getIsSorted() as string] ?? null}
-                    </div>
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.length > 0 ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
-                  No results found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">
-          Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
-          {Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, table.getFilteredRowModel().rows.length)}{" "}
-          of {table.getFilteredRowModel().rows.length} results
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>Previous</Button>
-          <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>Next</Button>
-        </div>
-      </div>
+    <div style={{ background:"var(--color-surface)", border:"1px solid var(--color-border)", borderRadius:"var(--radius-sm)", padding:"8px 12px", fontSize:11, boxShadow:"var(--shadow-card)" }}>
+      <p style={{ fontWeight:600, color:"var(--color-text-primary)", margin:"0 0 2px" }}>{label}</p>
+      <p style={{ color:"var(--color-accent)", margin:0 }}>{payload[0].value.toLocaleString()} services</p>
     </div>
   );
 }
 
-// --- Main Dashboard ---
+function Toggle({ label, active, onChange }: { label:string; active:boolean; onChange:(v:boolean)=>void }) {
+  return (
+    <button onClick={() => onChange(!active)} style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"5px 12px", fontSize:11, fontWeight:500, border:`1px solid ${active?"var(--color-accent)":"var(--color-border)"}`, borderRadius:20, background:active?"var(--color-accent-light)":"var(--color-surface)", color:active?"var(--color-accent)":"var(--color-text-secondary)", cursor:"pointer", transition:"all var(--duration-fast) var(--ease-out)", userSelect:"none" }}>
+      <span style={{ width:7, height:7, borderRadius:"50%", background:active?"var(--color-accent)":"var(--color-border)", flexShrink:0 }} />
+      {label}
+    </button>
+  );
+}
+
+function Sel({ value, onChange, options, placeholder }: { value:string; onChange:(v:string)=>void; options:string[]; placeholder:string }) {
+  return (
+    <select value={value} onChange={e => onChange(e.target.value)} style={{ padding:"5px 10px", fontSize:11, border:`1px solid ${value?"var(--color-accent)":"var(--color-border)"}`, borderRadius:"var(--radius-sm)", background:value?"var(--color-accent-light)":"var(--color-surface)", color:value?"var(--color-accent)":"var(--color-text-secondary)", cursor:"pointer", outline:"none", minWidth:160, transition:"border-color var(--duration-fast) var(--ease-out)" }}>
+      <option value="">{placeholder}</option>
+      {options.map(o => <option key={o} value={o}>{o}</option>)}
+    </select>
+  );
+}
+
+function BoolCell({ value }: { value?:boolean|null }) {
+  return (
+    <td style={{ padding:"7px 12px", textAlign:"center" }}>
+      {value
+        ? <span style={{ display:"inline-block", width:8, height:8, borderRadius:"50%", background:"#16a34a" }} />
+        : <span style={{ color:"var(--color-text-muted)", fontSize:11 }}>—</span>}
+    </td>
+  );
+}
+
 export default function Dashboard() {
-  const queryClient = useQueryClient();
-  const [isDark, setIsDark] = useState(false);
-  const [autoRefresh, setAutoRefresh] = useState(false);
-  const [isSpinning, setIsSpinning] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [selectedIntervalMs, setSelectedIntervalMs] = useState(5 * 60 * 1000);
-  
-  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({
-    from: new Date(2024, 0, 1),
-    to: new Date(2025, 5, 30)
-  });
-  const [departmentId, setDepartmentId] = useState<number | null>(null);
+  const [filters, setFilters] = useState<Filters>({});
+  const [search, setSearch]   = useState("");
+  const [tab, setTab]         = useState<"charts"|"report">("charts");
 
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const set = (k: keyof Filters, v: string|undefined) =>
+    setFilters(f => ({ ...f, [k]: v || undefined }));
 
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", isDark);
-  }, [isDark]);
+  const activeCount = Object.values(filters).filter(Boolean).length;
+  const clear = () => { setFilters({}); setSearch(""); };
 
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  const { data: counties  = [] } = useGetFilterCounties();
+  const { data: taxTerms  = [] } = useGetFilterTaxonomyTerms();
+  const { data: kpis,       isLoading: kpiL } = useGetAnalyticsKpis(filters);
+  const { data: byCat = [], isLoading: catL } = useGetServicesByCategory(filters);
+  const { data: byCty = [], isLoading: ctyL } = useGetServicesByCounty(filters);
+  const { data: byAge = [], isLoading: ageL } = useGetEligibilityByAge(filters);
+  const { data: byGen = [], isLoading: genL } = useGetEligibilityByGender(filters);
+  const { data: byLan = [], isLoading: lanL } = useGetLanguageDistribution(filters);
+  const { data: rpt   = [], isLoading: rptL } = useGetServicesReport(
+    { ...filters, search: search || undefined },
+    { query: { enabled: tab === "report" } }
+  );
 
-  const queryParams = useMemo(() => ({
-    startDate: dateRange.from ? format(dateRange.from, 'yyyy-MM-dd') : undefined,
-    endDate: dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : undefined,
-    departmentId: departmentId ?? undefined,
-  }), [dateRange, departmentId]);
-
-  // Data fetching
-  const { data: depts } = useGetDepartments();
-  const kpisQuery = useGetDashboardKpis(queryParams, { query: { queryKey: ['kpis', queryParams] } });
-  const admissionsQuery = useGetAdmissionsByMonth(queryParams, { query: { queryKey: ['admissions', queryParams] } });
-  const appointmentsQuery = useGetAppointmentsByDepartment(queryParams, { query: { queryKey: ['appointments', queryParams] } });
-  const occupancyQuery = useGetOccupancyByDepartment(queryParams, { query: { queryKey: ['occupancy', queryParams] } });
-  const avgLosQuery = useGetAvgLengthOfStay(queryParams, { query: { queryKey: ['avgLos', queryParams] } });
-  const dischargesQuery = useGetDischargeTrends(queryParams, { query: { queryKey: ['discharges', queryParams] } });
-  const reportQuery = useGetDashboardReport(queryParams, { query: { queryKey: ['report', queryParams] } });
-
-  const loading = 
-    kpisQuery.isLoading || kpisQuery.isFetching ||
-    admissionsQuery.isLoading || admissionsQuery.isFetching ||
-    appointmentsQuery.isLoading || appointmentsQuery.isFetching ||
-    occupancyQuery.isLoading || occupancyQuery.isFetching ||
-    avgLosQuery.isLoading || avgLosQuery.isFetching ||
-    dischargesQuery.isLoading || dischargesQuery.isFetching ||
-    reportQuery.isLoading || reportQuery.isFetching;
-
-  useEffect(() => {
-    if (loading) {
-      setIsSpinning(true);
-    } else {
-      const t = setTimeout(() => setIsSpinning(false), 600);
-      return () => clearTimeout(t);
-    }
-  }, [loading]);
-
-  useEffect(() => {
-    if (!autoRefresh) return;
-    const interval = setInterval(() => {
-      queryClient.invalidateQueries();
-    }, selectedIntervalMs);
-    return () => clearInterval(interval);
-  }, [autoRefresh, selectedIntervalMs, queryClient]);
-
-  const handleRefresh = () => {
-    queryClient.invalidateQueries();
+  const exportCsv = () => {
+    if (!rpt.length) return;
+    const hdrs = ["ID","Public Name","Official Name","Category","City","County","Age Group","Gender","Languages","Bilingual","LGBTQ+","Harm Reduction","Wait Time","Website"];
+    const rows = rpt.map(r => [
+      r.id,
+      `"${(r.publicName??'').replace(/"/g,'""')}"`,
+      `"${(r.officialName??'').replace(/"/g,'""')}"`,
+      `"${(r.category??'').replace(/"/g,'""')}"`,
+      r.physicalCity??'',
+      r.physicalCounty??'',
+      r.eligibilityAgeGroup??'',
+      r.eligibilityByGender??'',
+      `"${(r.languagesOfferedList??'').replace(/"/g,'""')}"`,
+      r.bilingualService?'Yes':'No',
+      r.lgbtqSupport?'Yes':'No',
+      r.harmReduction?'Yes':'No',
+      `"${(r.normalWaitTime??'').replace(/"/g,'""')}"`,
+      r.websiteAddress??'',
+    ]);
+    const csv = [hdrs.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const a = Object.assign(document.createElement("a"),{href:URL.createObjectURL(new Blob([csv],{type:"text/csv"})),download:"ontario_mental_health_services.csv"});
+    a.click();
   };
 
-  const INTERVAL_OPTIONS = [
-    { label: "Every 5 min", ms: 5 * 60 * 1000 },
-    { label: "Every 15 min", ms: 15 * 60 * 1000 },
-    { label: "Every 1 hour", ms: 60 * 60 * 1000 },
-  ];
-
-  const lastRefreshed = kpisQuery.dataUpdatedAt
-    ? new Date(kpisQuery.dataUpdatedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }).toLowerCase() + " on " + new Date(kpisQuery.dataUpdatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-    : null;
-
-  const gridColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e5e5";
-  const tickColor = isDark ? "#98999C" : "#71717a";
-
-  const btnBg = isDark ? "rgba(255,255,255,0.1)" : "#F0F1F2";
-  const btnColor = isDark ? "#c8c9cc" : "#4b5563";
-
-  const reportColumns: ColumnDef<any>[] = [
-    { accessorKey: "admissionId", header: "ID", cell: ({ row }) => <span className="font-mono text-sm">{row.original.admissionId}</span> },
-    { accessorKey: "patientName", header: "Patient Name" },
-    { accessorKey: "department", header: "Department" },
-    { accessorKey: "admissionDate", header: "Admission Date", cell: ({ row }) => new Date(row.original.admissionDate).toLocaleDateString() },
-    { accessorKey: "dischargeDate", header: "Discharge Date", cell: ({ row }) => row.original.dischargeDate ? new Date(row.original.dischargeDate).toLocaleDateString() : "-" },
-    { accessorKey: "lengthOfStay", header: "Length of Stay (Days)", cell: ({ row }) => row.original.lengthOfStay ?? "-" },
-    { 
-      accessorKey: "status", 
-      header: "Status",
-      cell: ({ row }) => {
-        const status = row.original.status;
-        const colorClass = status === 'discharged' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-        return <span className={`px-2 py-1 rounded text-xs font-medium capitalize ${colorClass}`}>{status}</span>;
-      }
-    }
-  ];
+  const PIE_TOOLTIP_STYLE = { fontSize:11, border:"1px solid var(--color-border)", borderRadius:"var(--radius-sm)" };
 
   return (
-    <div className="min-h-screen bg-background px-5 py-4 pt-[32px] pb-[32px] pl-[24px] pr-[24px]">
-      <div className="max-w-[1400px] mx-auto">
-        
-        {/* Header */}
-        <div className="mb-6 flex flex-wrap items-start justify-between gap-x-4 gap-y-4">
-          <div className="pt-2">
-            <h1 className="font-bold text-[32px] tracking-tight">Ontario Shores</h1>
-            <p className="text-muted-foreground mt-1.5 text-[14px]">Hospital Operations Dashboard</p>
-            {lastRefreshed && <p className="text-[12px] text-muted-foreground mt-3">Last refresh: {lastRefreshed}</p>}
-          </div>
-          <div className="flex items-center flex-wrap gap-3 pt-2">
-            
-            {/* Filters */}
-            <div className="flex items-center gap-2">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-[260px] justify-start text-left font-normal bg-card">
-                    <Calendar className="mr-2 h-4 w-4" />
-                    {dateRange.from && dateRange.to ? (
-                      <>{format(dateRange.from, "MMM d, yyyy")} - {format(dateRange.to, "MMM d, yyyy")}</>
-                    ) : (
-                      <span>Pick a date range</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    mode="range"
-                    selected={dateRange as any}
-                    onSelect={(range: any) => { if (range) setDateRange(range); }}
-                  />
-                </PopoverContent>
-              </Popover>
+    <div style={{ minHeight:"100vh", background:"var(--color-bg)" }}>
 
-              <Select value={departmentId ? departmentId.toString() : "all"} onValueChange={(v) => setDepartmentId(v === "all" ? null : parseInt(v))}>
-                <SelectTrigger className="w-[200px] bg-card">
-                  <Building2 className="w-4 h-4 mr-2 text-muted-foreground"/>
-                  <SelectValue placeholder="All Departments" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Departments</SelectItem>
-                  {depts?.map(d => (
-                    <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+      {/* Header */}
+      <header style={{ background:"var(--color-surface)", borderBottom:"1px solid var(--color-border)", padding:"var(--space-4) var(--space-8)", position:"sticky", top:0, zIndex:10 }}>
+        <div style={{ maxWidth:1400, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between", gap:16 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            <div style={{ width:26, height:26, borderRadius:"var(--radius-sm)", background:"var(--color-accent)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <rect x="1" y="8" width="3" height="7" fill="white" rx="0.5"/>
+                <rect x="6" y="5" width="3" height="10" fill="white" rx="0.5"/>
+                <rect x="11" y="1" width="3" height="14" fill="white" rx="0.5"/>
+              </svg>
             </div>
+            <div>
+              <h1 style={{ fontSize:"var(--text-base)", fontWeight:700, color:"var(--color-text-primary)", margin:0, lineHeight:1.2 }}>
+                Ontario Mental Health Services
+              </h1>
+              <p style={{ fontSize:11, color:"var(--color-text-muted)", margin:0 }}>
+                KHP 2019 MOH Export · {kpis?.totalServices?.toLocaleString() ?? "5,945"} service records · Internal analytics
+              </p>
+            </div>
+          </div>
+          <div style={{ display:"flex", background:"var(--color-bg)", border:"1px solid var(--color-border)", borderRadius:"var(--radius-sm)", padding:2, gap:2 }}>
+            {(["charts","report"] as const).map(t => (
+              <button key={t} onClick={() => setTab(t)} style={{ padding:"5px 14px", fontSize:11, fontWeight:500, border:"none", borderRadius:"calc(var(--radius-sm) - 2px)", cursor:"pointer", transition:"all var(--duration-fast) var(--ease-out)", background:tab===t?"var(--color-surface)":"transparent", color:tab===t?"var(--color-text-primary)":"var(--color-text-muted)", boxShadow:tab===t?"var(--shadow-card)":"none" }}>
+                {t==="charts"?"Dashboard":"Service Report"}
+              </button>
+            ))}
+          </div>
+        </div>
+      </header>
 
-            {/* Controls */}
-            <div className="flex items-center gap-3 print:hidden">
-              <div className="relative" ref={dropdownRef}>
-                <div className="flex items-center rounded-[6px] overflow-hidden h-[36px] text-[13px] font-medium" style={{ backgroundColor: btnBg, color: btnColor }}>
-                  <button onClick={handleRefresh} disabled={loading} className="flex items-center gap-2 px-3 h-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors disabled:opacity-50">
-                    <RefreshCw className={`w-4 h-4 ${isSpinning ? "animate-spin" : ""}`} />
-                    Refresh
-                  </button>
-                  <div className="w-px h-5 shrink-0" style={{ backgroundColor: isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)" }} />
-                  <button onClick={() => setDropdownOpen((o) => !o)} className="flex items-center justify-center px-2 h-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
-                    <ChevronDown className="w-4 h-4" />
-                  </button>
-                </div>
-                {dropdownOpen && (
-                  <div className="absolute right-0 top-[calc(100%+4px)] w-48 bg-popover border rounded-md shadow-lg p-1 z-50 text-[13px]">
-                    <div className="flex items-center justify-between p-2 border-b mb-1">
-                      <span className="font-medium">Auto-refresh</span>
-                      <button 
-                        className={`w-8 h-4 rounded-full relative transition-colors ${autoRefresh ? 'bg-primary' : 'bg-muted'}`}
-                        onClick={() => setAutoRefresh(!autoRefresh)}
-                      >
-                        <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${autoRefresh ? 'left-[18px]' : 'left-0.5'}`} />
-                      </button>
-                    </div>
-                    {INTERVAL_OPTIONS.map(opt => (
-                      <button
-                        key={opt.label}
-                        onClick={() => { setSelectedIntervalMs(opt.ms); setAutoRefresh(true); setDropdownOpen(false); }}
-                        className="w-full flex items-center justify-between p-2 hover:bg-accent rounded-sm transition-colors"
-                      >
-                        <span>{opt.label}</span>
-                        {selectedIntervalMs === opt.ms && <Check className="w-3.5 h-3.5" />}
-                      </button>
-                    ))}
-                  </div>
+      {/* Filter bar */}
+      <div style={{ background:"var(--color-surface)", borderBottom:"1px solid var(--color-border-subtle)", padding:"var(--space-2) var(--space-8)" }}>
+        <div style={{ maxWidth:1400, margin:"0 auto", display:"flex", flexWrap:"wrap", alignItems:"center", gap:8 }}>
+          <span style={{ fontSize:10, fontWeight:600, color:"var(--color-text-muted)", marginRight:4, letterSpacing:"0.04em", textTransform:"uppercase" }}>Filters</span>
+          <Sel value={filters.county??""} onChange={v=>set("county",v)} options={counties as string[]} placeholder="All Counties" />
+          <Sel value={filters.taxonomyTerm??""} onChange={v=>set("taxonomyTerm",v)} options={taxTerms as string[]} placeholder="All Categories" />
+          <Sel value={filters.ageGroup??""} onChange={v=>set("ageGroup",v)} options={AGE_GROUPS} placeholder="Any Age Group" />
+          <Sel value={filters.gender??""} onChange={v=>set("gender",v)} options={GENDER_GROUPS} placeholder="Any Gender" />
+          <Toggle label="Bilingual" active={filters.bilingual==="true"} onChange={v=>set("bilingual",v?"true":undefined)} />
+          <Toggle label="LGBTQ+" active={filters.lgbtq==="true"} onChange={v=>set("lgbtq",v?"true":undefined)} />
+          <Toggle label="Harm Reduction" active={filters.harmReduction==="true"} onChange={v=>set("harmReduction",v?"true":undefined)} />
+          {activeCount > 0 && (
+            <button onClick={clear} style={{ fontSize:11, color:"var(--color-text-muted)", background:"none", border:"none", cursor:"pointer", textDecoration:"underline", padding:0, marginLeft:4 }}>
+              Clear all ({activeCount})
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Main */}
+      <main style={{ maxWidth:1400, margin:"0 auto", padding:"var(--space-8)" }}>
+
+        {/* KPIs */}
+        <section style={{ marginBottom:"var(--space-8)" }}>
+          {kpiL ? (
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:"var(--space-4)" }}>
+              {[0,1,2,3,4].map(i => <KpiSkeleton key={i} />)}
+            </div>
+          ) : (
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))", gap:"var(--space-4)" }}>
+              <KpiCard label="Total Services"   value={kpis?.totalServices}         sub="Matching current filters"     delay={0}   />
+              <KpiCard label="Counties"         value={kpis?.totalCounties}         sub="Geographic regions covered"   delay={40}  />
+              <KpiCard label="Bilingual"        value={kpis?.bilingualServices}     sub="EN/FR available"              delay={80}  />
+              <KpiCard label="LGBTQ+ Affirming" value={kpis?.lgbtqServices}         sub="Services with LGBTQ+ support" delay={120} />
+              <KpiCard label="Harm Reduction"   value={kpis?.harmReductionServices} sub="Harm reduction approach"      delay={160} />
+            </div>
+          )}
+        </section>
+
+        {/* Charts */}
+        {tab === "charts" && (
+          <div style={{ display:"flex", flexDirection:"column", gap:"var(--space-6)" }}>
+
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"var(--space-6)" }}>
+
+              <div className="card animate-in" style={{ animationDelay:"200ms" }}>
+                <SLabel title="Services by Category" note="Top 15 taxonomy terms · SQL: GROUP BY term ORDER BY COUNT(*) DESC LIMIT 15" />
+                {catL ? <ChartSkeleton /> : (
+                  <ResponsiveContainer width="100%" height={360}>
+                    <BarChart data={byCat} layout="vertical" margin={{ left:8, right:20, top:4, bottom:4 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+                      <XAxis type="number" tick={{ fontSize:10, fill:"#94a3b8" }} axisLine={false} tickLine={false} />
+                      <YAxis type="category" dataKey="category" width={175} tick={{ fontSize:9, fill:"#475569" }} axisLine={false} tickLine={false}
+                        tickFormatter={(v:string) => v.length>30 ? v.slice(0,28)+"…" : v} />
+                      <Tooltip content={<TTip />} cursor={{ fill:"#f8fafc" }} />
+                      <Bar dataKey="count" radius={[0,3,3,0]} maxBarSize={16}>
+                        {byCat.map((_:unknown,i:number) => <Cell key={i} fill={CHART_COLORS[i%CHART_COLORS.length]} />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
                 )}
               </div>
 
-              <button
-                onClick={() => window.print()}
-                disabled={loading}
-                className="flex items-center justify-center w-[36px] h-[36px] rounded-[6px] transition-colors hover:opacity-80 disabled:opacity-50"
-                style={{ backgroundColor: btnBg, color: btnColor }}
-                aria-label="Export as PDF"
-              >
-                <Printer className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setIsDark((d) => !d)}
-                className="flex items-center justify-center w-[36px] h-[36px] rounded-[6px] transition-colors hover:opacity-80"
-                style={{ backgroundColor: btnBg, color: btnColor }}
-                aria-label="Toggle dark mode"
-              >
-                {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-              </button>
+              <div className="card animate-in" style={{ animationDelay:"240ms" }}>
+                <SLabel title="Services by County" note="Top 20 Ontario counties · SQL: GROUP BY physical_county ORDER BY COUNT(*) DESC LIMIT 20" />
+                {ctyL ? <ChartSkeleton /> : (
+                  <ResponsiveContainer width="100%" height={360}>
+                    <BarChart data={byCty} layout="vertical" margin={{ left:8, right:20, top:4, bottom:4 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+                      <XAxis type="number" tick={{ fontSize:10, fill:"#94a3b8" }} axisLine={false} tickLine={false} />
+                      <YAxis type="category" dataKey="county" width={100} tick={{ fontSize:10, fill:"#475569" }} axisLine={false} tickLine={false} />
+                      <Tooltip content={<TTip />} cursor={{ fill:"#f8fafc" }} />
+                      <Bar dataKey="count" radius={[0,3,3,0]} maxBarSize={14}>
+                        {byCty.map((_:unknown,i:number) => <Cell key={i} fill={CHART_COLORS[i%CHART_COLORS.length]} />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"var(--space-6)" }}>
+
+              <div className="card animate-in" style={{ animationDelay:"280ms" }}>
+                <SLabel title="Age Eligibility" note="Derived from Custom_Eligibility by Age (age range classification)" />
+                {ageL ? <ChartSkeleton /> : (
+                  <ResponsiveContainer width="100%" height={230}>
+                    <BarChart data={byAge} margin={{ left:0, right:12, top:4, bottom:44 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                      <XAxis dataKey="ageGroup" tick={{ fontSize:9, fill:"#475569" }} axisLine={false} tickLine={false} angle={-28} textAnchor="end" interval={0} />
+                      <YAxis tick={{ fontSize:10, fill:"#94a3b8" }} axisLine={false} tickLine={false} width={32} />
+                      <Tooltip content={<TTip />} cursor={{ fill:"#f8fafc" }} />
+                      <Bar dataKey="count" radius={[3,3,0,0]} fill="#1d4ed8" maxBarSize={36} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+
+              <div className="card animate-in" style={{ animationDelay:"320ms" }}>
+                <SLabel title="Gender Eligibility" note="Normalized from Custom_Eligibility by Gender field" />
+                {genL ? (
+                  <div style={{ height:230, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    <div className="skeleton" style={{ width:140, height:140, borderRadius:"50%" }} />
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={230}>
+                    <PieChart>
+                      <Pie data={byGen} dataKey="count" nameKey="gender" cx="50%" cy="44%" outerRadius={72} innerRadius={36} paddingAngle={3}>
+                        {byGen.map((_:unknown,i:number) => <Cell key={i} fill={PIE_COLORS[i%PIE_COLORS.length]} />)}
+                      </Pie>
+                      <Legend formatter={(v:string) => <span style={{ fontSize:10, color:"#475569" }}>{v}</span>} iconSize={8} />
+                      <Tooltip formatter={(v:number) => [v.toLocaleString(),"Services"]} contentStyle={PIE_TOOLTIP_STYLE} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+
+              <div className="card animate-in" style={{ animationDelay:"360ms" }}>
+                <SLabel title="Language Availability" note="Bilingual (EN/FR) vs English-only vs French-only" />
+                {lanL ? (
+                  <div style={{ height:230, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    <div className="skeleton" style={{ width:140, height:140, borderRadius:"50%" }} />
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={230}>
+                    <PieChart>
+                      <Pie data={byLan} dataKey="count" nameKey="language" cx="50%" cy="44%" outerRadius={72} innerRadius={36} paddingAngle={3}>
+                        {byLan.map((_:unknown,i:number) => <Cell key={i} fill={PIE_COLORS[i%PIE_COLORS.length]} />)}
+                      </Pie>
+                      <Legend formatter={(v:string) => <span style={{ fontSize:10, color:"#475569" }}>{v}</span>} iconSize={8} />
+                      <Tooltip formatter={(v:number) => [v.toLocaleString(),"Services"]} contentStyle={PIE_TOOLTIP_STYLE} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* KPIs */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
-          <Card>
-            <CardContent className="p-5">
-              {loading ? (
-                <><Skeleton className="h-4 w-24 mb-2" /><Skeleton className="h-8 w-20" /></>
-              ) : (
-                <>
-                  <p className="text-sm text-muted-foreground font-medium">Total Admissions</p>
-                  <p className="text-2xl font-bold mt-1" style={{ color: CHART_COLORS.blue }}>{kpisQuery.data?.totalAdmissions.toLocaleString()}</p>
-                </>
-              )}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-5">
-              {loading ? (
-                <><Skeleton className="h-4 w-24 mb-2" /><Skeleton className="h-8 w-20" /></>
-              ) : (
-                <>
-                  <p className="text-sm text-muted-foreground font-medium">Avg Length of Stay</p>
-                  <p className="text-2xl font-bold mt-1" style={{ color: CHART_COLORS.blue }}>{kpisQuery.data?.avgLengthOfStay.toFixed(1)} <span className="text-base font-normal text-muted-foreground">days</span></p>
-                </>
-              )}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-5">
-              {loading ? (
-                <><Skeleton className="h-4 w-24 mb-2" /><Skeleton className="h-8 w-20" /></>
-              ) : (
-                <>
-                  <p className="text-sm text-muted-foreground font-medium">Bed Occupancy</p>
-                  <p className="text-2xl font-bold mt-1" style={{ color: CHART_COLORS.blue }}>{kpisQuery.data?.bedOccupancyRate.toFixed(1)}%</p>
-                </>
-              )}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-5">
-              {loading ? (
-                <><Skeleton className="h-4 w-24 mb-2" /><Skeleton className="h-8 w-20" /></>
-              ) : (
-                <>
-                  <p className="text-sm text-muted-foreground font-medium">Staff : Patient</p>
-                  <p className="text-2xl font-bold mt-1" style={{ color: CHART_COLORS.blue }}>{kpisQuery.data?.staffPatientRatio.toFixed(2)}</p>
-                </>
-              )}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-5">
-              {loading ? (
-                <><Skeleton className="h-4 w-24 mb-2" /><Skeleton className="h-8 w-20" /></>
-              ) : (
-                <>
-                  <p className="text-sm text-muted-foreground font-medium">Total Discharges</p>
-                  <p className="text-2xl font-bold mt-1" style={{ color: CHART_COLORS.green }}>{kpisQuery.data?.totalDischarges.toLocaleString()}</p>
-                </>
-              )}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-5">
-              {loading ? (
-                <><Skeleton className="h-4 w-24 mb-2" /><Skeleton className="h-8 w-20" /></>
-              ) : (
-                <>
-                  <p className="text-sm text-muted-foreground font-medium">Total Appointments</p>
-                  <p className="text-2xl font-bold mt-1" style={{ color: CHART_COLORS.blue }}>{kpisQuery.data?.totalAppointments.toLocaleString()}</p>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Charts Row 1 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <Card>
-            <CardHeader className="px-5 pt-5 pb-3 flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-base font-semibold">Admissions Trend</CardTitle>
-              {!loading && admissionsQuery.data && admissionsQuery.data.length > 0 && (
-                <CSVLink data={admissionsQuery.data} filename="admissions-trend.csv" className="print:hidden flex items-center justify-center w-[28px] h-[28px] rounded-[6px] transition-colors hover:opacity-80" style={{ backgroundColor: btnBg, color: btnColor }} aria-label="Export CSV">
-                  <Download className="w-3.5 h-3.5" />
-                </CSVLink>
-              )}
-            </CardHeader>
-            <CardContent className="px-2 sm:px-5 pb-5">
-              {loading ? <Skeleton className="w-full h-[300px]" /> : admissionsQuery.data && admissionsQuery.data.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300} debounce={0}>
-                  <AreaChart data={admissionsQuery.data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="gradientAdmissions" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={CHART_COLORS.blue} stopOpacity={0.5} />
-                        <stop offset="100%" stopColor={CHART_COLORS.blue} stopOpacity={0.05} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
-                    <XAxis dataKey="month" tick={{ fontSize: 12, fill: tickColor }} stroke={tickColor} tickMargin={10} />
-                    <YAxis tick={{ fontSize: 12, fill: tickColor }} stroke={tickColor} tickMargin={10} />
-                    <RechartsTooltip content={<CustomTooltip />} isAnimationActive={false} cursor={{ fill: 'rgba(0,0,0,0.05)', stroke: 'none' }} />
-                    <Area type="monotone" dataKey="admissions" name="Admissions" fill="url(#gradientAdmissions)" stroke={CHART_COLORS.blue} fillOpacity={1} strokeWidth={2} activeDot={{ r: 5, fill: CHART_COLORS.blue, stroke: '#ffffff', strokeWidth: 3 }} isAnimationActive={false} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-[300px] flex items-center justify-center text-muted-foreground">No data available</div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="px-5 pt-5 pb-3 flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-base font-semibold">Weekly Discharges</CardTitle>
-              {!loading && dischargesQuery.data && dischargesQuery.data.length > 0 && (
-                <CSVLink data={dischargesQuery.data} filename="weekly-discharges.csv" className="print:hidden flex items-center justify-center w-[28px] h-[28px] rounded-[6px] transition-colors hover:opacity-80" style={{ backgroundColor: btnBg, color: btnColor }} aria-label="Export CSV">
-                  <Download className="w-3.5 h-3.5" />
-                </CSVLink>
-              )}
-            </CardHeader>
-            <CardContent className="px-2 sm:px-5 pb-5">
-              {loading ? <Skeleton className="w-full h-[300px]" /> : dischargesQuery.data && dischargesQuery.data.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300} debounce={0}>
-                  <LineChart data={dischargesQuery.data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
-                    <XAxis dataKey="week" tick={{ fontSize: 12, fill: tickColor }} stroke={tickColor} tickMargin={10} />
-                    <YAxis tick={{ fontSize: 12, fill: tickColor }} stroke={tickColor} tickMargin={10} />
-                    <RechartsTooltip content={<CustomTooltip />} isAnimationActive={false} cursor={{ stroke: tickColor, strokeDasharray: '3 3' }} />
-                    <Line type="monotone" dataKey="discharges" name="Discharges" stroke={CHART_COLORS.green} strokeWidth={2} dot={false} activeDot={{ r: 5, fill: CHART_COLORS.green, stroke: '#ffffff', strokeWidth: 3 }} isAnimationActive={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-[300px] flex items-center justify-center text-muted-foreground">No data available</div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Charts Row 2 */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          <Card className="lg:col-span-1">
-            <CardHeader className="px-5 pt-5 pb-3 flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-base font-semibold">Bed Occupancy Rate</CardTitle>
-              {!loading && occupancyQuery.data && occupancyQuery.data.length > 0 && (
-                <CSVLink data={occupancyQuery.data} filename="occupancy-by-department.csv" className="print:hidden flex items-center justify-center w-[28px] h-[28px] rounded-[6px] transition-colors hover:opacity-80" style={{ backgroundColor: btnBg, color: btnColor }} aria-label="Export CSV">
-                  <Download className="w-3.5 h-3.5" />
-                </CSVLink>
-              )}
-            </CardHeader>
-            <CardContent className="px-2 sm:px-5 pb-5">
-              {loading ? <Skeleton className="w-full h-[250px]" /> : occupancyQuery.data && occupancyQuery.data.length > 0 ? (
-                <ResponsiveContainer width="100%" height={250} debounce={0}>
-                  <BarChart data={occupancyQuery.data} layout="vertical" margin={{ top: 0, right: 10, left: 10, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} horizontal={false} />
-                    <XAxis type="number" tick={{ fontSize: 12, fill: tickColor }} stroke={tickColor} tickFormatter={v => `${v}%`} domain={[0, 100]} />
-                    <YAxis type="category" dataKey="department" tick={{ fontSize: 11, fill: tickColor }} stroke={tickColor} width={80} />
-                    <RechartsTooltip content={<CustomTooltip />} isAnimationActive={false} cursor={false} />
-                    <Bar dataKey="occupancyRate" name="Occupancy Rate" fill={CHART_COLORS.blue} fillOpacity={0.8} activeBar={{ fillOpacity: 1 }} isAnimationActive={false} radius={[0, 2, 2, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-[250px] flex items-center justify-center text-muted-foreground">No data available</div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="lg:col-span-1">
-            <CardHeader className="px-5 pt-5 pb-3 flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-base font-semibold">Appointments by Dept</CardTitle>
-              {!loading && appointmentsQuery.data && appointmentsQuery.data.length > 0 && (
-                <CSVLink data={appointmentsQuery.data} filename="appointments-by-department.csv" className="print:hidden flex items-center justify-center w-[28px] h-[28px] rounded-[6px] transition-colors hover:opacity-80" style={{ backgroundColor: btnBg, color: btnColor }} aria-label="Export CSV">
-                  <Download className="w-3.5 h-3.5" />
-                </CSVLink>
-              )}
-            </CardHeader>
-            <CardContent className="px-2 sm:px-5 pb-5">
-              {loading ? <Skeleton className="w-full h-[250px]" /> : appointmentsQuery.data && appointmentsQuery.data.length > 0 ? (
-                <ResponsiveContainer width="100%" height={250} debounce={0}>
-                  <BarChart data={appointmentsQuery.data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
-                    <XAxis dataKey="department" tick={{ fontSize: 11, fill: tickColor }} stroke={tickColor} tickMargin={10} angle={-30} textAnchor="end" height={60} />
-                    <YAxis tick={{ fontSize: 12, fill: tickColor }} stroke={tickColor} tickMargin={10} />
-                    <RechartsTooltip content={<CustomTooltip />} isAnimationActive={false} cursor={{ fill: 'rgba(0,0,0,0.05)' }} />
-                    <Legend content={<CustomLegend />} />
-                    <Bar dataKey="completed" stackId="a" name="Completed" fill={CHART_COLORS.blue} fillOpacity={0.9} isAnimationActive={false} />
-                    <Bar dataKey="cancelled" stackId="a" name="Cancelled" fill={CHART_COLORS.red} fillOpacity={0.7} isAnimationActive={false} radius={[2, 2, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-[250px] flex items-center justify-center text-muted-foreground">No data available</div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="lg:col-span-1">
-            <CardHeader className="px-5 pt-5 pb-3 flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-base font-semibold">Avg Length of Stay</CardTitle>
-              {!loading && avgLosQuery.data && avgLosQuery.data.length > 0 && (
-                <CSVLink data={avgLosQuery.data} filename="avg-length-of-stay.csv" className="print:hidden flex items-center justify-center w-[28px] h-[28px] rounded-[6px] transition-colors hover:opacity-80" style={{ backgroundColor: btnBg, color: btnColor }} aria-label="Export CSV">
-                  <Download className="w-3.5 h-3.5" />
-                </CSVLink>
-              )}
-            </CardHeader>
-            <CardContent className="px-2 sm:px-5 pb-5">
-              {loading ? <Skeleton className="w-full h-[250px]" /> : avgLosQuery.data && avgLosQuery.data.length > 0 ? (
-                <ResponsiveContainer width="100%" height={250} debounce={0}>
-                  <BarChart data={avgLosQuery.data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
-                    <XAxis dataKey="department" tick={{ fontSize: 11, fill: tickColor }} stroke={tickColor} tickMargin={10} angle={-30} textAnchor="end" height={60} />
-                    <YAxis tick={{ fontSize: 12, fill: tickColor }} stroke={tickColor} tickMargin={10} />
-                    <RechartsTooltip content={<CustomTooltip />} isAnimationActive={false} cursor={{ fill: 'rgba(0,0,0,0.05)' }} />
-                    <Bar dataKey="avgDays" name="Avg Days" fill={CHART_COLORS.purple} fillOpacity={0.8} activeBar={{ fillOpacity: 1 }} isAnimationActive={false} radius={[2, 2, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-[250px] flex items-center justify-center text-muted-foreground">No data available</div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Tabular Report */}
-        <Card className="mb-8">
-          <CardHeader className="px-5 pt-5 pb-3">
-            <CardTitle className="text-base font-semibold">Admissions Report</CardTitle>
-          </CardHeader>
-          <CardContent className="px-5 pb-5">
-            {loading ? (
-              <div className="space-y-2">
-                <Skeleton className="h-10 w-full" />
-                {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+        {/* Report */}
+        {tab === "report" && (
+          <div>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"var(--space-4)", gap:12, flexWrap:"wrap" }}>
+              <div>
+                <h2 style={{ fontSize:"var(--text-base)", fontWeight:600, margin:0 }}>Service Records</h2>
+                <p style={{ fontSize:11, color:"var(--color-text-muted)", margin:"2px 0 0" }}>
+                  {rptL ? "Loading…" : `${rpt.length.toLocaleString()} records${rpt.length===500?" (max 500 shown)":""}`}
+                </p>
               </div>
-            ) : reportQuery.data ? (
-              <DataTable data={reportQuery.data} columns={reportColumns} />
-            ) : (
-              <div className="h-[200px] flex items-center justify-center text-muted-foreground">No data available</div>
-            )}
-          </CardContent>
-        </Card>
+              <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by service name…"
+                  style={{ padding:"6px 10px", fontSize:11, border:"1px solid var(--color-border)", borderRadius:"var(--radius-sm)", outline:"none", width:220, background:"var(--color-surface)", color:"var(--color-text-primary)" }} />
+                <button onClick={exportCsv} disabled={!rpt.length}
+                  style={{ padding:"6px 14px", fontSize:11, fontWeight:500, border:"1px solid var(--color-accent)", borderRadius:"var(--radius-sm)", background:"var(--color-accent)", color:"white", cursor:rpt.length?"pointer":"not-allowed", opacity:rpt.length?1:0.5, transition:"opacity var(--duration-fast)" }}>
+                  Export CSV
+                </button>
+              </div>
+            </div>
 
-      </div>
+            <div className="card" style={{ overflow:"hidden", padding:0 }}>
+              {rptL ? (
+                <div style={{ padding:"var(--space-8)", display:"flex", flexDirection:"column", gap:12 }}>
+                  {[0,1,2,3,4,5,6,7].map(i => (
+                    <div key={i} className="skeleton" style={{ height:18, width:i%3===0?"55%":"80%", borderRadius:"var(--radius-sm)" }} />
+                  ))}
+                </div>
+              ) : (
+                <div style={{ overflowX:"auto" }}>
+                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:11 }}>
+                    <thead>
+                      <tr style={{ background:"var(--color-bg)", borderBottom:"1px solid var(--color-border)" }}>
+                        {["Service Name","Category","City","County","Age Group","Gender","Languages","Bilingual","LGBTQ+","Harm Red.","Wait Time"].map(h => (
+                          <th key={h} style={{ padding:"8px 12px", textAlign:"left", fontWeight:600, color:"var(--color-text-muted)", letterSpacing:"0.03em", textTransform:"uppercase", fontSize:10, whiteSpace:"nowrap" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rpt.length===0 ? (
+                        <tr><td colSpan={11} style={{ padding:"var(--space-8)", textAlign:"center", color:"var(--color-text-muted)" }}>No records match the current filters.</td></tr>
+                      ) : rpt.map((row, i) => (
+                        <tr key={row.id}
+                          style={{ borderBottom:"1px solid var(--color-border-subtle)", background:i%2===0?"var(--color-surface)":"var(--color-bg)", transition:"background var(--duration-fast)" }}
+                          onMouseEnter={e => (e.currentTarget.style.background="var(--color-accent-light)")}
+                          onMouseLeave={e => (e.currentTarget.style.background=i%2===0?"var(--color-surface)":"var(--color-bg)")}>
+                          <td style={{ padding:"7px 12px", maxWidth:200 }}>
+                            <div style={{ fontWeight:500, color:"var(--color-text-primary)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                              {row.publicName || row.officialName || "—"}
+                            </div>
+                            {row.websiteAddress && (
+                              <a href={row.websiteAddress} target="_blank" rel="noopener noreferrer" style={{ color:"var(--color-accent)", textDecoration:"none", fontSize:10 }}>Website</a>
+                            )}
+                          </td>
+                          <td style={{ padding:"7px 12px", maxWidth:180 }}>
+                            <span style={{ color:"var(--color-text-secondary)", overflow:"hidden", textOverflow:"ellipsis", display:"block", whiteSpace:"nowrap" }}>{row.category||"—"}</span>
+                          </td>
+                          <td style={{ padding:"7px 12px", whiteSpace:"nowrap", color:"var(--color-text-secondary)" }}>{row.physicalCity||"—"}</td>
+                          <td style={{ padding:"7px 12px", whiteSpace:"nowrap", color:"var(--color-text-secondary)" }}>{row.physicalCounty||"—"}</td>
+                          <td style={{ padding:"7px 12px", whiteSpace:"nowrap" }}>
+                            {row.eligibilityAgeGroup
+                              ? <span style={{ display:"inline-block", padding:"2px 6px", background:"var(--color-accent-light)", color:"var(--color-accent)", borderRadius:10, fontSize:10 }}>{row.eligibilityAgeGroup}</span>
+                              : "—"}
+                          </td>
+                          <td style={{ padding:"7px 12px", whiteSpace:"nowrap", color:"var(--color-text-secondary)" }}>{row.eligibilityByGender||"—"}</td>
+                          <td style={{ padding:"7px 12px", maxWidth:120 }}>
+                            <span style={{ color:"var(--color-text-secondary)", overflow:"hidden", textOverflow:"ellipsis", display:"block", whiteSpace:"nowrap" }}>{row.languagesOfferedList||"—"}</span>
+                          </td>
+                          <BoolCell value={row.bilingualService} />
+                          <BoolCell value={row.lgbtqSupport} />
+                          <BoolCell value={row.harmReduction} />
+                          <td style={{ padding:"7px 12px", maxWidth:160 }}>
+                            <span style={{ color:"var(--color-text-secondary)", overflow:"hidden", textOverflow:"ellipsis", display:"block", whiteSpace:"nowrap" }}>{row.normalWaitTime||"—"}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </main>
+
+      <footer style={{ borderTop:"1px solid var(--color-border-subtle)", padding:"var(--space-4) var(--space-8)", textAlign:"center", fontSize:11, color:"var(--color-text-muted)" }}>
+        Data source: Kids Help Phone — Ontario Ministry of Health Export 2019 · For internal analytics use only
+      </footer>
     </div>
   );
 }

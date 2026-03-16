@@ -1,12 +1,12 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
-import dashboardRouter from "./dashboard";
-import departmentsRouter from "./departments";
+import analyticsRouter from "./analytics";
+import filtersRouter from "./filters";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
-router.use(departmentsRouter);
-router.use(dashboardRouter);
+router.use(filtersRouter);
+router.use(analyticsRouter);
 
 export default router;

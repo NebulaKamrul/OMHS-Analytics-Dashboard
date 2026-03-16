@@ -1,0 +1,304 @@
+Build a professional Business Intelligence dashboard web application using a real Ontario mental health services Excel dataset.
+
+The goal is to simulate an internal analytics/reporting tool that policy analysts, administrators, or BI teams could use to understand the distribution, accessibility, and eligibility patterns of mental health services across Ontario.
+
+This project is intended for a technical internship portfolio, so it should prioritize realism, structured data modeling, SQL-based analytics, clean enterprise UI, and strong engineering practices rather than flashy design.
+
+The uploaded Excel file is the main data source. It contains mental health service records with fields such as public service name, official name, taxonomy/category, mailing and physical location fields, latitude/longitude, eligibility fields, languages offered, coverage area, hours, wait time, and custom fields such as bilingual service, eligibility by age, eligibility by gender, LGBTQ support, and harm reduction.
+
+-----------------------------------
+PROJECT GOALS
+
+This project should demonstrate:
+
+• cleaning and transforming a messy real-world Excel dataset
+• relational data modeling
+• SQL-based analytics queries
+• dashboard reporting
+• filterable reports
+• data visualization
+• enterprise-style UI discipline
+• clear backend data flow
+
+This should feel like a practical internal reporting dashboard used by analysts or service planners, not a startup landing page.
+
+-----------------------------------
+DATA INGESTION
+
+Use the uploaded Excel file as the primary source.
+
+Requirements:
+
+• Parse the Excel file and load the data into PostgreSQL
+• Clean inconsistent or sparse fields where needed
+• Preserve important source columns
+• Build a data import script so the ingestion process is reproducible
+• Document which columns are used directly, which are transformed, and which are excluded
+
+-----------------------------------
+SUGGESTED DATA MODEL
+
+Create a clean relational schema derived from the Excel data.
+
+Suggested tables:
+
+services
+- id
+- resource_agency_num
+- public_name
+- official_name
+- taxonomy_level_name
+- agency_status
+- agency_description
+- coverage_area
+- normal_wait_time
+- application_process
+- resource_info
+- languages_offered
+- languages_offered_list
+- bilingual_service
+- lgbtq_support
+- harm_reduction
+- eligibility_general
+- eligibility_age
+- eligibility_gender
+- record_type
+- source_database
+- entered_on
+- updated_on
+
+locations
+- id
+- service_id
+- mailing_city
+- mailing_state_province
+- mailing_postal_code
+- physical_city
+- physical_county
+- physical_state_province
+- physical_postal_code
+- latitude
+- longitude
+
+taxonomy_categories
+- id
+- service_id
+- taxonomy_term
+- taxonomy_terms
+- taxonomy_codes
+- categories
+
+If needed, create helper/normalized lookup tables for:
+- age eligibility groups
+- gender eligibility groups
+- language categories
+- service accessibility flags
+
+Use proper primary keys and foreign key relationships.
+
+The schema should be normalized enough to explain in an interview, but not overly complex.
+
+-----------------------------------
+ANALYTICS QUESTIONS THE DASHBOARD SHOULD ANSWER
+
+The dashboard should help answer questions like:
+
+• How many mental health services are in the dataset?
+• Which categories of services are most common?
+• Which cities or counties have the most services?
+• How many services are bilingual?
+• What age groups are most commonly served?
+• What gender eligibility patterns appear most often?
+• How many services mention LGBTQ support?
+• How many services mention harm reduction?
+• Which service categories appear to have longer wait times?
+• What services exist by location, category, and eligibility combination?
+
+-----------------------------------
+DASHBOARD FEATURES
+
+Include the following dashboard sections:
+
+1. KPI cards
+• Total services
+• Total cities/regions represented
+• Bilingual services count
+• LGBTQ-supportive services count
+• Harm reduction services count
+
+2. Charts
+• Bar chart: services by taxonomy/category
+• Bar chart: services by city or county
+• Pie or bar chart: eligibility by age group
+• Pie or bar chart: eligibility by gender
+• Bar chart: language availability / bilingual vs non-bilingual
+• Chart showing average or grouped wait time patterns if usable after cleaning
+
+3. Filters
+• city / county
+• taxonomy/category
+• age eligibility
+• gender eligibility
+• bilingual service
+• LGBTQ support
+• harm reduction support
+
+4. Reporting table
+A searchable, filterable service table including:
+• public name
+• category
+• city
+• eligibility by age
+• eligibility by gender
+• languages
+• bilingual status
+• wait time
+• website if available
+
+5. Export
+• Export filtered table results to CSV if possible
+
+-----------------------------------
+SQL REQUIREMENTS
+
+Use real SQL queries for analytics.
+
+Examples:
+• count of services by category
+• count of services by city
+• count of services where bilingual flag is true
+• count of services grouped by eligibility age
+• count of services grouped by eligibility gender
+• filtered service listings by region and category
+• grouped analysis of wait time if structured enough after cleaning
+
+Keep SQL visible and understandable so the project is easy to discuss in an interview.
+
+Create a separate file called analytics_queries.sql containing the main queries used by the dashboard.
+
+-----------------------------------
+TECH STACK
+
+Frontend
+React
+TypeScript
+Tailwind CSS
+
+Backend
+Express.js
+TypeScript
+
+Database
+PostgreSQL
+
+Charts
+Use a standard dashboard charting library suitable for BI dashboards
+
+Data ingestion
+Use a backend import script to read the Excel file and load the cleaned data into PostgreSQL
+
+-----------------------------------
+DATA FLOW
+
+Structure the system clearly:
+
+Excel file → cleaning/transformation script → PostgreSQL → SQL queries → backend API → frontend dashboard
+
+Each chart must be powered by a real SQL aggregation query.
+
+The code should be organized so it is easy to explain:
+• how the Excel data is cleaned
+• how it is stored in the database
+• how filters affect queries
+• how metrics are calculated
+• how the dashboard consumes backend data
+
+-----------------------------------
+DESIGN SYSTEM REQUIREMENT
+
+Create a small design system first.
+
+Define:
+• spacing scale
+• typography scale
+• color tokens
+• border radius tokens
+• animation rules
+
+All components must reference these tokens.
+Avoid ad-hoc styling.
+
+-----------------------------------
+STRICT DESIGN RULES
+
+Avoid vibe-coded website patterns.
+
+COLORS & VISUAL
+• No default purple gradients unless brand-appropriate
+• No sparkles or emojis in headings
+• No glowing hover effects
+• Use a neutral enterprise palette
+• Maintain consistent contrast
+
+TYPOGRAPHY
+• Define a consistent type scale
+• Avoid oversized headings with ultra-thin body text
+• Maintain consistent line height
+• Maintain consistent paragraph spacing
+• Enforce clear hierarchy
+
+LAYOUT & COMPONENTS
+• Consistent component placement across pages
+• Define and reuse 2-3 border radius values maximum
+• Subtle hover states only (2-4px lift max)
+• Icons scaled proportionally to text
+• Remove non-functional social icons
+• Avoid decorative UI elements with no functional purpose
+
+ANIMATIONS & INTERACTIONS
+• Use easing curves (cubic-bezier)
+• Stagger timing intentionally
+• Animations must serve a UX purpose
+• Avoid decorative animation
+
+UX BEHAVIORS
+• Loading states for all async actions
+• Progress indicators for long operations
+• Skeleton screens for data-heavy sections
+• Functional filters and interactions
+
+COPYWRITING
+Avoid startup marketing language.
+
+Do NOT use phrases like:
+• "Launch faster"
+• "Build your dreams"
+• "Create without limits"
+
+Avoid:
+• fake testimonials
+• generic placeholder people
+• fake user avatars
+• generic AI names
+
+-----------------------------------
+README REQUIREMENTS
+
+Generate a README that explains:
+• project purpose
+• architecture
+• import pipeline
+• cleaned database schema
+• main dashboard KPIs
+• main SQL queries
+• how filters work
+• how to run the project locally
+
+-----------------------------------
+RESUME DESCRIPTION
+
+Also generate 3 polished resume bullet points describing this as a BI/data analytics project based on a real Ontario mental health services dataset.
+
+Important:
+Prioritize realism, data modeling, SQL analytics, and reporting value over visual flashiness.
+This should feel like a serious student-built mental health services intelligence dashboard.

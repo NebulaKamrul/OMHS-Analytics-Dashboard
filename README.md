@@ -1,171 +1,191 @@
-# Ontario Shores — Hospital Operations Analytics Dashboard
+# Ontario Mental Health Services Intelligence Dashboard
 
-A full-stack Business Intelligence dashboard for monitoring hospital operations across departments. Built as a portfolio project demonstrating SQL-driven analytics, relational data modeling, and interactive data visualization.
+A Business Intelligence dashboard built on a real dataset of 5,945 Ontario mental health service records published by the Ministry of Health (Kids Help Phone 2019 MOH Export). Designed to replicate the kind of internal analytics tool used by policy analysts, administrators, and service planners.
 
 ---
 
-## Architecture Overview
+## Project Purpose
+
+This project demonstrates:
+
+- Real-world Excel data cleaning and transformation
+- Relational database schema design in PostgreSQL
+- SQL-based analytics queries
+- RESTful API with typed request/response contracts (OpenAPI + codegen)
+- Filterable BI dashboard with multiple chart types and export functionality
+
+---
+
+## Architecture
 
 ```
-Frontend (React + Vite)          Backend (Express.js + Node)      Database (PostgreSQL)
-      │                                    │                              │
-  React Query hooks  ──────────►  REST API endpoints  ──────────►  Drizzle ORM + raw SQL
-  Recharts charts                  Zod validation                  Normalized schema
-  TanStack Table                   Route handlers                  Aggregation queries
+Excel file (.xlsx)
+    │
+    ▼
+Import script (scripts/src/import_services.ts)
+    │  Reads and transforms 5,945 rows
+    │  Normalizes free-text fields to booleans
+    │  Derives age groups from semicolon-delimited age lists
+    │  Splits taxonomy terms into separate normalized rows
+    ▼
+PostgreSQL (Drizzle ORM)
+    ├── services         (5,945 rows)
+    └── service_taxonomy (10,265 rows — normalized terms)
+         │
+         ▼
+Express.js API (artifacts/api-server/)
+    │  OpenAPI 3.1 spec → orval codegen → typed React Query hooks
+    │  Every chart endpoint runs a real SQL GROUP BY aggregation
+    │  Filter parameters applied consistently across all endpoints
+         │
+         ▼
+React + Vite Dashboard (artifacts/hospital-dashboard/)
+    ├── KPI cards        — total services, counties, bilingual, LGBTQ+, harm reduction
+    ├── Bar chart        — services by taxonomy category (top 15)
+    ├── Bar chart        — services by Ontario county (top 20)
+    ├── Bar chart        — eligibility by age group (derived)
+    ├── Pie chart        — gender eligibility distribution
+    ├── Pie chart        — language availability (EN / FR / Bilingual)
+    └── Report table     — searchable, filterable, CSV exportable
 ```
 
-**Data flow:**
-1. User sets filters (date range, department) in the React UI
-2. React Query hooks call the REST API with filter params
-3. Express routes run parameterized SQL queries against PostgreSQL
-4. Aggregated data returns as JSON and renders as charts/tables
+---
+
+## Data Source
+
+**File:** `khp_2019_moh_export_open_data_updated.xlsx`
+**Source:** Kids Help Phone — Ontario Ministry of Health, 2019
+**Records:** 5,945 rows, 140+ columns
+**Coverage:** Mental health, addiction, and crisis services across Ontario
 
 ---
 
 ## Database Schema
 
-Six normalized tables with proper foreign key constraints:
+### `services`
 
-```sql
-departments   (id, name, code, total_beds, staff_count)
-patients      (id, first_name, last_name, date_of_birth, gender, health_card_number)
-staff         (id, first_name, last_name, role, department_id → departments)
-beds          (id, bed_number, department_id → departments, status)
-admissions    (id, patient_id → patients, department_id → departments, bed_id → beds,
-               admission_date, discharge_date, status, admission_type)
-appointments  (id, patient_id → patients, department_id → departments,
-               staff_id → staff, scheduled_at, status, appointment_type)
-```
+One row per service record. Core analytics table.
 
-**Design decisions:**
-- `admissions` tracks inpatient stays with `admission_date` / `discharge_date` interval
-- `appointments` tracks outpatient visits separately (different patient flow)
-- `beds` are assigned per department; occupancy is derived at query time
-- `staff` is linked to departments for the staff-to-patient ratio KPI
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | serial | Primary key |
+| `resource_agency_num` | text | Source agency identifier |
+| `public_name` | text | Public-facing service name |
+| `official_name` | text | Official registered name |
+| `taxonomy_level` | text | Record type (Agency, Site, Program, ProgramAtSite) |
+| `agency_status` | text | Active / Active but do not refer |
+| `agency_description` | text | HTML-stripped description |
+| `website_address` | text | Service website URL |
+| `bilingual_service` | boolean | **Derived:** true if "Bilingual" or "Bilingue" in source |
+| `lgbtq_support` | boolean | **Derived:** true if "Yes" or "Oui" |
+| `harm_reduction` | boolean | **Derived:** true if "Yes" or "Oui" |
+| `eligibility_age_group` | text | **Derived:** classified age group from age list |
+| `eligibility_by_gender` | text | **Normalized:** Female Only / Male Only / All Genders |
+| `physical_city` | text | Physical location city |
+| `physical_county` | text | Ontario county |
+| `latitude` / `longitude` | numeric | GPS coordinates |
+
+### `service_taxonomy`
+
+Normalized taxonomy terms. One row per (service, term) pair.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | serial | Primary key |
+| `service_id` | integer | Foreign key → services(id) |
+| `term` | text | Individual taxonomy term |
+
+The source `TaxonomyTerms` field is semicolon-delimited. Normalizing into rows enables clean `GROUP BY term` aggregations without string-splitting in SQL.
 
 ---
 
-## KPIs and How They Are Calculated
+## Import Pipeline
 
-| KPI | SQL Logic |
-|-----|-----------|
-| **Total Admissions** | `COUNT(DISTINCT admissions.id)` in date range |
-| **Avg Length of Stay** | `AVG(EXTRACT(EPOCH FROM discharge_date - admission_date) / 86400)` for discharged patients |
-| **Bed Occupancy Rate** | `SUM(admitted) / SUM(total_beds) * 100` across departments |
-| **Staff-to-Patient Ratio** | `COUNT(staff) / COUNT(currently admitted)` |
-| **Total Discharges** | `COUNT WHERE status = 'discharged'` in date range |
-| **Total Appointments** | `COUNT(appointments)` in date range |
+```bash
+pnpm --filter @workspace/scripts run import
+```
+
+1. Reads Excel file using `xlsx` library
+2. Iterates rows in batches of 200
+3. Applies field transformations:
+   - `bilingual_service` ← contains "Bilingual" or "Bilingue" → `true`
+   - `lgbtq_support` ← "Yes" or "Oui" → `true`
+   - `harm_reduction` ← "Yes" or "Oui" → `true`
+   - `eligibility_by_gender` ← normalizes French/English variants
+   - `eligibility_age_group` ← parses semicolon age list → min/max classification
+   - `agency_description` ← HTML stripped
+4. Inserts services, then splits taxonomy terms into `service_taxonomy`
+
+**Excluded columns:** Phone numbers (10 phone fields), contact staff details, IRS/legal/financial fields, `SearchHints`, raw address lines.
 
 ---
 
-## SQL Queries Powering Each Chart
+## Dashboard KPIs
 
-### Admissions by Month (trend chart)
-```sql
-SELECT
-  TO_CHAR(DATE_TRUNC('month', admission_date), 'YYYY-MM') AS month,
-  COUNT(*)::int AS admissions
-FROM admissions
-WHERE admission_date BETWEEN $startDate AND $endDate
-GROUP BY DATE_TRUNC('month', admission_date)
-ORDER BY DATE_TRUNC('month', admission_date);
-```
+| KPI | SQL | Result |
+|-----|-----|--------|
+| Total Services | `COUNT(*)` | 5,945 |
+| Counties | `COUNT(DISTINCT physical_county)` | 50 |
+| Bilingual Services | `COUNT(*) FILTER (WHERE bilingual_service)` | 266 |
+| LGBTQ+ Affirming | `COUNT(*) FILTER (WHERE lgbtq_support)` | 248 |
+| Harm Reduction | `COUNT(*) FILTER (WHERE harm_reduction)` | 6 |
 
-### Appointments by Department (stacked bar)
-```sql
-SELECT
-  d.name AS department,
-  COUNT(ap.id)::int AS appointments,
-  COUNT(CASE WHEN ap.status = 'completed' THEN 1 END)::int AS completed,
-  COUNT(CASE WHEN ap.status = 'cancelled' THEN 1 END)::int AS cancelled
-FROM appointments ap
-JOIN departments d ON ap.department_id = d.id
-GROUP BY d.id, d.name
-ORDER BY COUNT(ap.id) DESC;
-```
+---
 
-### Bed Occupancy by Department (bar chart)
-```sql
-SELECT
-  d.name AS department,
-  d.total_beds AS "totalBeds",
-  COUNT(CASE WHEN a.status = 'admitted' THEN 1 END)::int AS "occupiedBeds",
-  ROUND(
-    100.0 * COUNT(CASE WHEN a.status = 'admitted' THEN 1 END)::numeric
-      / NULLIF(d.total_beds, 0), 1
-  )::float AS "occupancyRate"
-FROM departments d
-LEFT JOIN admissions a ON a.department_id = d.id
-GROUP BY d.id, d.name, d.total_beds
-ORDER BY "occupancyRate" DESC;
-```
+## Key SQL Queries
 
-### Average Length of Stay by Department (bar chart)
-```sql
-SELECT
-  d.name AS department,
-  ROUND(
-    AVG(EXTRACT(EPOCH FROM (discharge_date - admission_date)) / 86400.0)::numeric, 1
-  )::float AS "avgDays"
-FROM admissions a
-JOIN departments d ON a.department_id = d.id
-WHERE a.discharge_date IS NOT NULL
-GROUP BY d.id, d.name
-ORDER BY "avgDays" DESC;
-```
+All queries are documented in `analytics_queries.sql`.
 
-### Weekly Discharge Trends (line chart)
 ```sql
-SELECT
-  TO_CHAR(DATE_TRUNC('week', discharge_date), 'YYYY-MM-DD') AS week,
-  COUNT(*)::int AS discharges
-FROM admissions
-WHERE discharge_date IS NOT NULL AND status = 'discharged'
-GROUP BY DATE_TRUNC('week', discharge_date)
-ORDER BY DATE_TRUNC('week', discharge_date);
+-- Services by category (top 15)
+SELECT st.term AS category, COUNT(DISTINCT s.id) AS count
+FROM service_taxonomy st
+JOIN services s ON s.id = st.service_id
+GROUP BY st.term ORDER BY count DESC LIMIT 15;
+
+-- Services by county (top 20)
+SELECT physical_county, COUNT(*) AS count
+FROM services WHERE physical_county IS NOT NULL
+GROUP BY physical_county ORDER BY count DESC LIMIT 20;
+
+-- Age eligibility distribution
+SELECT eligibility_age_group, COUNT(*) AS count
+FROM services WHERE eligibility_age_group IS NOT NULL
+GROUP BY eligibility_age_group ORDER BY count DESC;
 ```
 
 ---
 
-## Filtering
+## How Filters Work
 
-All queries accept optional parameters:
-- `startDate` — ISO 8601 date string, applied as `admission_date >= $startDate`
-- `endDate` — ISO 8601 date string, applied as `admission_date <= $endDate + 1 day`
-- `departmentId` — integer, added as `AND department_id = $departmentId`
+All chart and report endpoints accept the same filter parameters:
 
-Parameters use **Drizzle's `sql` template tag** for safe parameterized queries (no string interpolation, no SQL injection risk).
+| Parameter | Applied as |
+|-----------|-----------|
+| `county` | `WHERE physical_county = $county` |
+| `taxonomyTerm` | `JOIN service_taxonomy WHERE term = $term` |
+| `bilingual` | `WHERE bilingual_service = true` |
+| `lgbtq` | `WHERE lgbtq_support = true` |
+| `harmReduction` | `WHERE harm_reduction = true` |
+| `ageGroup` | `WHERE eligibility_age_group = $ageGroup` |
+| `gender` | `WHERE eligibility_by_gender = $gender` |
+
+All chart panels stay in sync because they share the same filter conditions.
 
 ---
 
 ## Tech Stack
 
 | Layer | Technology |
-|-------|------------|
-| Frontend | React 18, TypeScript, Vite |
-| Styling | Tailwind CSS v4, shadcn/ui |
-| Charts | Recharts |
-| Data fetching | TanStack React Query (generated hooks) |
-| Data table | TanStack React Table |
-| CSV export | react-csv |
-| Backend | Express.js 5, TypeScript, Node.js 24 |
-| Validation | Zod (generated from OpenAPI spec) |
-| API contract | OpenAPI 3.1, Orval codegen |
+|-------|-----------|
+| Frontend | React, TypeScript, Vite, Recharts |
+| Styling | Tailwind CSS v4 with CSS custom property design tokens |
+| API client | Orval (OpenAPI → React Query codegen) |
+| Backend | Express.js, TypeScript |
 | ORM | Drizzle ORM |
 | Database | PostgreSQL |
-
----
-
-## Seed Data
-
-`scripts/src/seed.ts` generates 18 months of realistic synthetic data (Jan 2024 – Jun 2025):
-- **5 departments**: Psychiatry, Emergency, Outpatient Services, Addictions and Mental Health, Community Care
-- **115 staff** members across all departments
-- **300 patients** with realistic demographics
-- **850 admissions** with varying length-of-stay by department type
-- **1,200 appointments** with completed/cancelled/scheduled statuses
-
-Run: `pnpm --filter @workspace/scripts run seed`
+| Data import | xlsx, Node.js |
+| API contract | OpenAPI 3.1 (`lib/api-spec/openapi.yaml`) |
 
 ---
 
@@ -173,16 +193,20 @@ Run: `pnpm --filter @workspace/scripts run seed`
 
 ```bash
 pnpm install
-pnpm --filter @workspace/db run push       # Apply schema
-pnpm --filter @workspace/scripts run seed  # Seed data
-pnpm --filter @workspace/api-server run dev
+pnpm --filter @workspace/db run push-force
+pnpm --filter @workspace/scripts run import
+pnpm --filter @workspace/api-server run dev   # port 8080
 pnpm --filter @workspace/hospital-dashboard run dev
 ```
 
+Requires `DATABASE_URL` environment variable.
+
 ---
 
-## Resume Blurb
+## Resume Bullet Points
 
-> **Hospital Operations Analytics Dashboard** | React, TypeScript, Express.js, PostgreSQL, Recharts
->
-> Built a full-stack Business Intelligence dashboard to monitor hospital operational metrics across five clinical departments. Designed a normalized PostgreSQL schema (departments, patients, staff, beds, admissions, appointments) and implemented SQL aggregation queries for KPIs including bed occupancy rate, average length of stay, staff-to-patient ratio, and monthly admissions trends. Backend built with Express.js using an OpenAPI-first contract; frontend uses React Query hooks generated from the spec. Features include date range filtering, department filtering, interactive charts (area, bar, stacked bar, line), a paginated and sortable admissions report table, CSV export per chart, dark mode, and PDF export.
+- **Designed and implemented a full-stack BI dashboard** for 5,945 real Ontario mental health service records (KHP 2019 MOH Export), covering data ingestion from Excel, normalization into a relational PostgreSQL schema, REST API layer with OpenAPI codegen, and a filterable React dashboard with five chart types and CSV export.
+
+- **Built a reproducible ETL pipeline** that cleans messy real-world Excel data, normalizes free-text bilingual/LGBTQ/gender eligibility fields to structured booleans, derives age eligibility groups from semicolon-delimited age lists, and loads 10,000+ normalized taxonomy rows via batched PostgreSQL inserts using Drizzle ORM.
+
+- **Architected a SQL-backed analytics API** with filter-consistent GROUP BY aggregation endpoints (taxonomy, geography, eligibility, language distribution), an OpenAPI 3.1 spec, and orval-generated TypeScript React Query hooks — demonstrating end-to-end type safety from database schema to UI component.
