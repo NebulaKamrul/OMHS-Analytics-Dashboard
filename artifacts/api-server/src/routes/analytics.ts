@@ -4,13 +4,11 @@
  * Each endpoint runs a real SQL aggregation against the services and
  * service_taxonomy tables. Filter parameters are applied consistently
  * across all endpoints so chart values stay in sync with the report table.
- *
- * analytics_queries.sql contains the equivalent raw SQL for reference.
  */
 
 import { Router } from "express";
 import { db, servicesTable, serviceTaxonomyTable } from "@workspace/db";
-import { sql, eq, and, isNotNull, ilike } from "drizzle-orm";
+import { sql, eq, and, isNotNull } from "drizzle-orm";
 
 const router = Router();
 
@@ -41,20 +39,29 @@ function buildFilters(query: Record<string, string | undefined>) {
   return conditions.length > 0 ? and(...conditions) : undefined;
 }
 
+// Returns the taxonomy join condition for a parent category filter
+function taxonomyJoinFilter(taxonomyTerm: string) {
+  return sql`SPLIT_PART(${serviceTaxonomyTable.term}, ' - ', 1) = ${taxonomyTerm}`;
+}
+
 // ── GET /api/analytics/kpis ───────────────────────────────────────────────────
-//
-// SELECT
-//   COUNT(*)                                      AS total_services,
-//   COUNT(DISTINCT physical_county)               AS total_counties,
-//   COUNT(*) FILTER (WHERE bilingual_service)     AS bilingual_services,
-//   COUNT(*) FILTER (WHERE lgbtq_support)         AS lgbtq_services,
-//   COUNT(*) FILTER (WHERE harm_reduction)        AS harm_reduction_services
-// FROM services
-// WHERE <filters>;
 
 router.get("/analytics/kpis", async (req, res, next) => {
   try {
-    const where = buildFilters(req.query as Record<string, string>);
+    const q = req.query as Record<string, string>;
+    const where = buildFilters(q);
+    const taxonomyTerm = q.taxonomyTerm;
+
+    const conditions = [];
+    if (where) conditions.push(where);
+    if (taxonomyTerm) {
+      conditions.push(
+        sql`${servicesTable.id} IN (
+          SELECT service_id FROM service_taxonomy
+          WHERE SPLIT_PART(term, ' - ', 1) = ${taxonomyTerm}
+        )`
+      );
+    }
 
     const [row] = await db
       .select({
@@ -65,7 +72,7 @@ router.get("/analytics/kpis", async (req, res, next) => {
         harmReductionServices: sql<number>`COUNT(*) FILTER (WHERE ${servicesTable.harmReduction})::int`,
       })
       .from(servicesTable)
-      .where(where);
+      .where(conditions.length > 0 ? and(...conditions) : undefined);
 
     res.json(row);
   } catch (err) {
@@ -75,38 +82,33 @@ router.get("/analytics/kpis", async (req, res, next) => {
 
 // ── GET /api/analytics/services-by-category ──────────────────────────────────
 //
-// SELECT st.term AS category, COUNT(DISTINCT s.id) AS count
-// FROM service_taxonomy st
-// JOIN services s ON s.id = st.service_id
-// WHERE <filters>
-// GROUP BY st.term
-// ORDER BY count DESC
-// LIMIT 15;
+// Groups by the parent category (before " - ") so sub-types like
+// "Mental Health and Substance Use Disorder Services - Adult" and
+// "Mental Health and Substance Use Disorder Services - Youth" are merged.
 
 router.get("/analytics/services-by-category", async (req, res, next) => {
   try {
-    const where = buildFilters(req.query as Record<string, string>);
-    const taxonomyTerm = (req.query as Record<string, string>).taxonomyTerm;
+    const q = req.query as Record<string, string>;
+    const where = buildFilters(q);
+    const taxonomyTerm = q.taxonomyTerm;
 
-    let query = db
+    const parentCategory = sql<string>`SPLIT_PART(${serviceTaxonomyTable.term}, ' - ', 1)`;
+
+    const conditions = [];
+    if (where) conditions.push(where);
+    if (taxonomyTerm) conditions.push(taxonomyJoinFilter(taxonomyTerm));
+
+    const rows = await db
       .select({
-        category: serviceTaxonomyTable.term,
+        category: parentCategory,
         count: sql<number>`COUNT(DISTINCT ${servicesTable.id})::int`,
       })
       .from(serviceTaxonomyTable)
       .innerJoin(servicesTable, eq(servicesTable.id, serviceTaxonomyTable.serviceId))
-      .$dynamic();
-
-    if (where || taxonomyTerm) {
-      const allConditions = [];
-      if (where) allConditions.push(where);
-      query = query.where(allConditions.length > 0 ? and(...allConditions) : undefined);
-    }
-
-    const rows = await query
-      .groupBy(serviceTaxonomyTable.term)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .groupBy(parentCategory)
       .orderBy(sql`COUNT(DISTINCT ${servicesTable.id}) DESC`)
-      .limit(15);
+      .limit(12);
 
     res.json(rows);
   } catch (err) {
@@ -115,26 +117,17 @@ router.get("/analytics/services-by-category", async (req, res, next) => {
 });
 
 // ── GET /api/analytics/services-by-county ────────────────────────────────────
-//
-// SELECT physical_county AS county, COUNT(*) AS count
-// FROM services
-// WHERE physical_county IS NOT NULL AND <filters>
-// GROUP BY physical_county
-// ORDER BY count DESC
-// LIMIT 20;
 
 router.get("/analytics/services-by-county", async (req, res, next) => {
   try {
-    const where = buildFilters(req.query as Record<string, string>);
-    const taxonomyTerm = (req.query as Record<string, string>).taxonomyTerm;
+    const q = req.query as Record<string, string>;
+    const where = buildFilters(q);
+    const taxonomyTerm = q.taxonomyTerm;
 
-    let baseQuery = db
-      .select({
-        county: servicesTable.physicalCounty,
-        count: sql<number>`COUNT(*)::int`,
-      })
-      .from(servicesTable)
-      .$dynamic();
+    const baseConditions = [isNotNull(servicesTable.physicalCounty)];
+    if (where) baseConditions.push(where);
+
+    let baseQuery;
 
     if (taxonomyTerm) {
       baseQuery = db
@@ -143,20 +136,29 @@ router.get("/analytics/services-by-county", async (req, res, next) => {
           count: sql<number>`COUNT(DISTINCT ${servicesTable.id})::int`,
         })
         .from(servicesTable)
-        .innerJoin(serviceTaxonomyTable, and(
-          eq(serviceTaxonomyTable.serviceId, servicesTable.id),
-          eq(serviceTaxonomyTable.term, taxonomyTerm)
-        ))
+        .innerJoin(
+          serviceTaxonomyTable,
+          and(
+            eq(serviceTaxonomyTable.serviceId, servicesTable.id),
+            taxonomyJoinFilter(taxonomyTerm)
+          )
+        )
+        .where(and(...baseConditions))
+        .$dynamic();
+    } else {
+      baseQuery = db
+        .select({
+          county: servicesTable.physicalCounty,
+          count: sql<number>`COUNT(*)::int`,
+        })
+        .from(servicesTable)
+        .where(and(...baseConditions))
         .$dynamic();
     }
 
-    const baseConditions = [isNotNull(servicesTable.physicalCounty)];
-    if (where) baseConditions.push(where);
-
     const rows = await baseQuery
-      .where(and(...baseConditions))
       .groupBy(servicesTable.physicalCounty)
-      .orderBy(sql`COUNT(*)::int DESC`)
+      .orderBy(sql`2 DESC`)
       .limit(20);
 
     res.json(rows);
@@ -166,12 +168,6 @@ router.get("/analytics/services-by-county", async (req, res, next) => {
 });
 
 // ── GET /api/analytics/eligibility-by-age ────────────────────────────────────
-//
-// SELECT eligibility_age_group AS age_group, COUNT(*) AS count
-// FROM services
-// WHERE eligibility_age_group IS NOT NULL AND <filters>
-// GROUP BY eligibility_age_group
-// ORDER BY count DESC;
 
 router.get("/analytics/eligibility-by-age", async (req, res, next) => {
   try {
@@ -196,12 +192,6 @@ router.get("/analytics/eligibility-by-age", async (req, res, next) => {
 });
 
 // ── GET /api/analytics/eligibility-by-gender ─────────────────────────────────
-//
-// SELECT eligibility_by_gender AS gender, COUNT(*) AS count
-// FROM services
-// WHERE eligibility_by_gender IS NOT NULL AND <filters>
-// GROUP BY eligibility_by_gender
-// ORDER BY count DESC;
 
 router.get("/analytics/eligibility-by-gender", async (req, res, next) => {
   try {
@@ -226,18 +216,6 @@ router.get("/analytics/eligibility-by-gender", async (req, res, next) => {
 });
 
 // ── GET /api/analytics/language-distribution ─────────────────────────────────
-//
-// SELECT
-//   CASE
-//     WHEN bilingual_service THEN 'Bilingual (EN/FR)'
-//     WHEN languages_offered_list ILIKE '%français%' OR languages_offered_list ILIKE '%french%'
-//          THEN 'French Only'
-//     ELSE 'English Only'
-//   END AS language,
-//   COUNT(*) AS count
-// FROM services
-// GROUP BY 1
-// ORDER BY count DESC;
 
 router.get("/analytics/language-distribution", async (req, res, next) => {
   try {
@@ -268,19 +246,6 @@ router.get("/analytics/language-distribution", async (req, res, next) => {
 });
 
 // ── GET /api/analytics/services-report ───────────────────────────────────────
-//
-// SELECT s.id, s.public_name, s.official_name,
-//        string_agg(DISTINCT st.term, ', ') AS category,
-//        s.physical_city, s.physical_county,
-//        s.eligibility_by_age, s.eligibility_age_group, s.eligibility_by_gender,
-//        s.languages_offered_list, s.bilingual_service, s.lgbtq_support,
-//        s.harm_reduction, s.normal_wait_time, s.website_address
-// FROM services s
-// LEFT JOIN service_taxonomy st ON st.service_id = s.id
-// WHERE <filters>
-// GROUP BY s.id
-// ORDER BY s.public_name
-// LIMIT 500;
 
 router.get("/analytics/services-report", async (req, res, next) => {
   try {
@@ -297,27 +262,7 @@ router.get("/analytics/services-report", async (req, res, next) => {
       );
     }
 
-    let baseQuery = db
-      .select({
-        id: servicesTable.id,
-        publicName: servicesTable.publicName,
-        officialName: servicesTable.officialName,
-        category: sql<string>`string_agg(DISTINCT ${serviceTaxonomyTable.term}, ', ')`,
-        physicalCity: servicesTable.physicalCity,
-        physicalCounty: servicesTable.physicalCounty,
-        eligibilityByAge: servicesTable.eligibilityByAge,
-        eligibilityAgeGroup: servicesTable.eligibilityAgeGroup,
-        eligibilityByGender: servicesTable.eligibilityByGender,
-        languagesOfferedList: servicesTable.languagesOfferedList,
-        bilingualService: servicesTable.bilingualService,
-        lgbtqSupport: servicesTable.lgbtqSupport,
-        harmReduction: servicesTable.harmReduction,
-        normalWaitTime: servicesTable.normalWaitTime,
-        websiteAddress: servicesTable.websiteAddress,
-      })
-      .from(servicesTable)
-      .leftJoin(serviceTaxonomyTable, eq(serviceTaxonomyTable.serviceId, servicesTable.id))
-      .$dynamic();
+    let baseQuery;
 
     if (taxonomyTerm) {
       baseQuery = db
@@ -343,9 +288,31 @@ router.get("/analytics/services-report", async (req, res, next) => {
           serviceTaxonomyTable,
           and(
             eq(serviceTaxonomyTable.serviceId, servicesTable.id),
-            eq(serviceTaxonomyTable.term, taxonomyTerm)
+            taxonomyJoinFilter(taxonomyTerm)
           )
         )
+        .$dynamic();
+    } else {
+      baseQuery = db
+        .select({
+          id: servicesTable.id,
+          publicName: servicesTable.publicName,
+          officialName: servicesTable.officialName,
+          category: sql<string>`string_agg(DISTINCT ${serviceTaxonomyTable.term}, ', ')`,
+          physicalCity: servicesTable.physicalCity,
+          physicalCounty: servicesTable.physicalCounty,
+          eligibilityByAge: servicesTable.eligibilityByAge,
+          eligibilityAgeGroup: servicesTable.eligibilityAgeGroup,
+          eligibilityByGender: servicesTable.eligibilityByGender,
+          languagesOfferedList: servicesTable.languagesOfferedList,
+          bilingualService: servicesTable.bilingualService,
+          lgbtqSupport: servicesTable.lgbtqSupport,
+          harmReduction: servicesTable.harmReduction,
+          normalWaitTime: servicesTable.normalWaitTime,
+          websiteAddress: servicesTable.websiteAddress,
+        })
+        .from(servicesTable)
+        .leftJoin(serviceTaxonomyTable, eq(serviceTaxonomyTable.serviceId, servicesTable.id))
         .$dynamic();
     }
 

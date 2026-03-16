@@ -16,6 +16,7 @@
   --space-2: 0.5rem;
   --space-3: 0.75rem;
   --space-4: 1rem;
+  --space-5: 1.25rem;
   --space-6: 1.5rem;
   --space-8: 2rem;
   --space-10: 2.5rem;
@@ -24,7 +25,7 @@
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
   --text-base: 1rem;
-  --text-lg: 1.25rem;
+  --text-lg: 1.125rem;
   --text-xl: 1.5rem;
   --text-2xl: 2rem;
 
@@ -46,7 +47,7 @@
 
   /* Shadows */
   --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.04);
-  --shadow-card-hover: 0 4px 8px -2px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.04);
+  --shadow-card-hover: 0 4px 10px -2px rgb(0 0 0 / 0.10), 0 2px 4px -2px rgb(0 0 0 / 0.05);
 
   /* Animation */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -66,18 +67,30 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Card component */
+/* Base card — static, no hover movement (charts live inside these) */
 .card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
-  transition: box-shadow var(--duration-base) var(--ease-out),
-              transform var(--duration-base) var(--ease-out);
+  padding: var(--space-5);
 }
-.card:hover {
+
+/* KPI card — lifts on hover to signal interactivity */
+.card-kpi {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  transition:
+    box-shadow var(--duration-base) var(--ease-out),
+    transform var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out);
+}
+.card-kpi:hover {
   box-shadow: var(--shadow-card-hover);
   transform: translateY(-2px);
+  border-color: #cbd5e1;
 }
 
 /* Skeleton screen */
@@ -91,9 +104,14 @@ body {
   animation: skeleton-pulse 1.8s ease-in-out infinite;
 }
 
+/* Recharts SVG overflow fix — Recharts sets overflow:hidden inline so !important is required */
+.recharts-wrapper svg {
+  overflow: visible !important;
+}
+
 /* Entrance animation (stagger via animation-delay in components) */
 @keyframes slide-up {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 .animate-in {
