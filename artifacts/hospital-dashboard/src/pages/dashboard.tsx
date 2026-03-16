@@ -427,7 +427,7 @@ export default function Dashboard() {
       </main>
 
       <footer style={{ borderTop:"1px solid var(--color-border-subtle)", padding:"var(--space-4) var(--space-8)", textAlign:"center", fontSize:11, color:"var(--color-text-muted)" }}>
-        Data source: Kids Help Phone — Ontario Ministry of Health Export 2019 · For internal analytics use only
+        Data source: Kids Help Phone: Ontario Ministry of Health Export 2019 · For internal analytics use only
       </footer>
     </div>
   );
