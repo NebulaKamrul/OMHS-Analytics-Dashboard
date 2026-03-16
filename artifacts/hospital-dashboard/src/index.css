@@ -1,11 +1,6 @@
 /**
- * Design system tokens — Ontario Mental Health Services Dashboard
- *
- * Spacing: 4px base unit
- * Typography: 12/14/16/20/24/32px scale
- * Color: neutral slate enterprise palette, single accent blue
- * Radius: sm(4px) / md(8px) / lg(12px)
- * Animations: cubic-bezier easing, functional purpose only
+ * Design system — Ontario Mental Health Services Dashboard
+ * Aesthetic: warm minimal, editorial, intentional
  */
 
 @import "tailwindcss";
@@ -22,35 +17,39 @@
   --space-10: 2.5rem;
 
   /* Typography */
-  --text-xs: 0.75rem;
-  --text-sm: 0.875rem;
+  --text-xs:   0.70rem;
+  --text-sm:   0.875rem;
   --text-base: 1rem;
-  --text-lg: 1.125rem;
-  --text-xl: 1.5rem;
-  --text-2xl: 2rem;
+  --text-lg:   1.125rem;
+  --text-xl:   1.5rem;
+  --text-2xl:  2.25rem;
 
-  /* Colors */
-  --color-bg: #f8fafc;
-  --color-surface: #ffffff;
-  --color-border: #e2e8f0;
-  --color-border-subtle: #f1f5f9;
-  --color-text-primary: #0f172a;
-  --color-text-secondary: #475569;
-  --color-text-muted: #94a3b8;
-  --color-accent: #1d4ed8;
-  --color-accent-light: #eff6ff;
+  /* Fonts */
+  --font-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --font-sans:  'Inter', ui-sans-serif, system-ui, sans-serif;
 
-  /* Border radius */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
+  /* Colors — warm editorial palette */
+  --color-bg:             #faf8f4;
+  --color-surface:        #ffffff;
+  --color-border:         #e8e3dc;
+  --color-border-subtle:  #f0ece6;
+  --color-text-primary:   #1c1917;
+  --color-text-secondary: #6b6560;
+  --color-text-muted:     #9c9590;
+  --color-accent:         #78532a;
+  --color-accent-mid:     #a0723d;
+  --color-accent-light:   #f5ede3;
 
-  /* Shadows */
-  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.04);
-  --shadow-card-hover: 0 4px 10px -2px rgb(0 0 0 / 0.10), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  /* Chart warm palette */
+  --chart-1: #78532a;
+  --chart-2: #c4a882;
+  --chart-3: #a0723d;
+  --chart-4: #d9c4a8;
+  --chart-5: #5c3e1f;
+  --chart-6: #e8d9c4;
 
   /* Animation */
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out:      cubic-bezier(0.16, 1, 0.3, 1);
   --duration-fast: 140ms;
   --duration-base: 220ms;
 }
@@ -59,61 +58,57 @@
 
 body {
   margin: 0;
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--font-sans);
   font-size: var(--text-sm);
-  line-height: 1.5;
+  line-height: 1.6;
   color: var(--color-text-primary);
   background-color: var(--color-bg);
   -webkit-font-smoothing: antialiased;
 }
 
-/* Base card — static, no hover movement (charts live inside these) */
+/* Base card — thin warm border, no shadow */
 .card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
+  border-radius: 6px;
   padding: var(--space-5);
 }
 
-/* KPI card — lifts on hover to signal interactivity */
+/* KPI card — subtle lift on hover */
 .card-kpi {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
+  border-radius: 6px;
   transition:
-    box-shadow var(--duration-base) var(--ease-out),
-    transform var(--duration-base) var(--ease-out),
-    border-color var(--duration-base) var(--ease-out);
+    border-color var(--duration-base) var(--ease-out),
+    transform   var(--duration-base) var(--ease-out);
 }
 .card-kpi:hover {
-  box-shadow: var(--shadow-card-hover);
-  transform: translateY(-2px);
-  border-color: #cbd5e1;
+  border-color: var(--color-accent-mid);
+  transform: translateY(-1px);
 }
 
-/* Skeleton screen */
+/* Skeleton */
 @keyframes skeleton-pulse {
   0%, 100% { opacity: 1; }
-  50%       { opacity: 0.45; }
+  50%       { opacity: 0.4; }
 }
 .skeleton {
   background: var(--color-border-subtle);
-  border-radius: var(--radius-sm);
+  border-radius: 3px;
   animation: skeleton-pulse 1.8s ease-in-out infinite;
 }
 
-/* Recharts SVG overflow fix — Recharts sets overflow:hidden inline so !important is required */
-.recharts-wrapper svg {
-  overflow: visible !important;
-}
-
-/* Entrance animation (stagger via animation-delay in components) */
+/* Entrance animation */
 @keyframes slide-up {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 .animate-in {
   animation: slide-up var(--duration-base) var(--ease-out) both;
+}
+
+/* Recharts SVG overflow fix */
+.recharts-wrapper svg {
+  overflow: visible !important;
 }

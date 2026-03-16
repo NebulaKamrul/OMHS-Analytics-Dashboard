@@ -25,8 +25,14 @@ import {
   useGetFilterTaxonomyTerms,
 } from "@workspace/api-client-react";
 
-const CHART_BLUE  = ["#1e40af","#1d4ed8","#2563eb","#3b82f6","#60a5fa","#93c5fd","#bfdbfe","#dbeafe","#eff6ff","#1e3a8a","#1e40af","#2563eb"];
-const PIE_COLORS  = ["#1d4ed8","#3b82f6","#93c5fd","#bfdbfe"];
+const CHART_WARM  = ["#78532a","#a0723d","#c4a882","#5c3e1f","#d9c4a8","#8f6335","#e8d9c4","#4a3319","#b89060","#6e4d27","#cfb090","#3d2a12"];
+const PIE_WARM    = ["#78532a","#c4a882","#a0723d","#e8d9c4"];
+
+const SERIF  = "'Playfair Display', Georgia, serif";
+const TICK_COLOR  = "#9c9590";
+const TICK_DARK   = "#6b6560";
+const GRID_COLOR  = "#f0ece6";
+const CURSOR_FILL = "#faf8f4";
 
 interface Filters {
   county?: string;
@@ -44,9 +50,9 @@ const GENDER_GROUPS = ["Female Only","Male Only","All Genders"];
 function KpiSkeleton() {
   return (
     <div className="card-kpi" style={{ padding:"var(--space-6)" }}>
-      <div className="skeleton" style={{ height:10, width:"60%", borderRadius:"var(--radius-sm)", marginBottom:12 }} />
-      <div className="skeleton" style={{ height:28, width:"40%", borderRadius:"var(--radius-sm)", marginBottom:8 }} />
-      <div className="skeleton" style={{ height:8, width:"70%", borderRadius:"var(--radius-sm)" }} />
+      <div className="skeleton" style={{ height:9, width:"55%", marginBottom:14 }} />
+      <div className="skeleton" style={{ height:32, width:"40%", marginBottom:10 }} />
+      <div className="skeleton" style={{ height:8, width:"65%"  }} />
     </div>
   );
 }
@@ -54,11 +60,13 @@ function KpiSkeleton() {
 function KpiCard({ label, value, sub, delay=0 }: { label:string; value?:number; sub?:string; delay?:number }) {
   return (
     <div className="card-kpi animate-in" style={{ padding:"var(--space-6)", animationDelay:`${delay}ms` }}>
-      <p style={{ fontSize:10, fontWeight:600, letterSpacing:"0.07em", textTransform:"uppercase", color:"var(--color-text-muted)", margin:"0 0 10px" }}>{label}</p>
-      <p style={{ fontSize:"var(--text-2xl)", fontWeight:700, color:"var(--color-text-primary)", lineHeight:1, margin:"0 0 6px" }}>
+      <p style={{ fontSize:"var(--text-xs)", fontWeight:600, letterSpacing:"0.09em", textTransform:"uppercase", color:"var(--color-text-muted)", margin:"0 0 10px", fontFamily:"var(--font-sans)" }}>
+        {label}
+      </p>
+      <p style={{ fontSize:"var(--text-2xl)", fontWeight:700, fontFamily:SERIF, color:"var(--color-text-primary)", lineHeight:1, margin:"0 0 6px" }}>
         {value?.toLocaleString() ?? "—"}
       </p>
-      {sub && <p style={{ fontSize:11, color:"var(--color-text-muted)", margin:0 }}>{sub}</p>}
+      {sub && <p style={{ fontSize:"var(--text-xs)", color:"var(--color-text-muted)", margin:0, fontFamily:"var(--font-sans)" }}>{sub}</p>}
     </div>
   );
 }
@@ -67,7 +75,7 @@ function ChartSkeleton({ height=300 }: { height?:number }) {
   return (
     <div style={{ height, display:"flex", alignItems:"flex-end", gap:8, padding:"0 4px" }}>
       {[65,45,80,35,70,50,85,40,60,55].map((h,i) => (
-        <div key={i} className="skeleton" style={{ flex:1, height:`${h}%`, borderRadius:"var(--radius-sm)" }} />
+        <div key={i} className="skeleton" style={{ flex:1, height:`${h}%` }} />
       ))}
     </div>
   );
@@ -76,8 +84,10 @@ function ChartSkeleton({ height=300 }: { height?:number }) {
 function SectionHeader({ title, note }: { title:string; note?:string }) {
   return (
     <div style={{ marginBottom:"var(--space-4)", paddingBottom:"var(--space-3)", borderBottom:"1px solid var(--color-border-subtle)" }}>
-      <p style={{ fontSize:"var(--text-sm)", fontWeight:600, color:"var(--color-text-primary)", margin:0 }}>{title}</p>
-      {note && <p style={{ fontSize:11, color:"var(--color-text-muted)", margin:"3px 0 0" }}>{note}</p>}
+      <p style={{ fontSize:"var(--text-base)", fontWeight:700, fontFamily:SERIF, color:"var(--color-text-primary)", margin:0, lineHeight:1.3 }}>
+        {title}
+      </p>
+      {note && <p style={{ fontSize:"var(--text-xs)", color:"var(--color-text-muted)", margin:"4px 0 0", fontFamily:"var(--font-sans)", letterSpacing:"0.01em" }}>{note}</p>}
     </div>
   );
 }
@@ -85,7 +95,7 @@ function SectionHeader({ title, note }: { title:string; note?:string }) {
 function TTip({ active, payload, label }: { active?:boolean; payload?:Array<{value:number}>; label?:string }) {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{ background:"var(--color-surface)", border:"1px solid var(--color-border)", borderRadius:"var(--radius-md)", padding:"10px 14px", fontSize:12, boxShadow:"var(--shadow-card)" }}>
+    <div style={{ background:"var(--color-surface)", border:"1px solid var(--color-border)", borderRadius:4, padding:"10px 14px", fontSize:12, fontFamily:"var(--font-sans)" }}>
       <p style={{ fontWeight:600, color:"var(--color-text-primary)", margin:"0 0 3px" }}>{label}</p>
       <p style={{ color:"var(--color-accent)", margin:0 }}>{payload[0].value.toLocaleString()} services</p>
     </div>
@@ -98,11 +108,12 @@ function Toggle({ label, active, onChange }: { label:string; active:boolean; onC
       onClick={() => onChange(!active)}
       style={{
         display:"inline-flex", alignItems:"center", gap:6,
-        padding:"5px 12px", fontSize:12, fontWeight:500,
-        border:`1px solid ${active?"var(--color-accent)":"var(--color-border)"}`,
+        padding:"4px 13px", fontSize:12, fontWeight:500,
+        fontFamily:"var(--font-sans)",
+        border:`1px solid ${active ? "var(--color-accent)" : "var(--color-border)"}`,
         borderRadius:20,
-        background:active?"var(--color-accent)":"var(--color-surface)",
-        color:active?"#fff":"var(--color-text-secondary)",
+        background:active ? "var(--color-accent)" : "transparent",
+        color:active ? "#fff" : "var(--color-text-secondary)",
         cursor:"pointer", transition:"all var(--duration-fast) var(--ease-out)",
         userSelect:"none", whiteSpace:"nowrap",
       }}>
@@ -123,13 +134,13 @@ function Sel({
       onChange={e => onChange(e.target.value)}
       style={{
         padding:"5px 8px", fontSize:12,
-        border:`1px solid ${value?"var(--color-accent)":"var(--color-border)"}`,
-        borderRadius:"var(--radius-sm)",
-        background:value?"var(--color-accent-light)":"var(--color-surface)",
-        color:value?"var(--color-accent)":"var(--color-text-secondary)",
+        fontFamily:"var(--font-sans)",
+        border:`1px solid ${value ? "var(--color-accent)" : "var(--color-border)"}`,
+        borderRadius:4,
+        background: value ? "var(--color-accent-light)" : "var(--color-surface)",
+        color: value ? "var(--color-accent)" : "var(--color-text-secondary)",
         cursor:"pointer", outline:"none",
         width, maxWidth:width, minWidth:width,
-        overflow:"hidden", textOverflow:"ellipsis",
         transition:"border-color var(--duration-fast) var(--ease-out)",
       }}>
       <option value="">{placeholder}</option>
@@ -142,8 +153,8 @@ function BoolCell({ value }: { value?:boolean|null }) {
   return (
     <td style={{ padding:"7px 12px", textAlign:"center" }}>
       {value
-        ? <span style={{ display:"inline-block", width:8, height:8, borderRadius:"50%", background:"#16a34a" }} />
-        : <span style={{ color:"var(--color-border)", fontSize:11 }}>·</span>}
+        ? <span style={{ display:"inline-block", width:7, height:7, borderRadius:"50%", background:"#78532a" }} />
+        : <span style={{ color:"var(--color-border)", fontSize:13 }}>·</span>}
     </td>
   );
 }
@@ -196,84 +207,82 @@ export default function Dashboard() {
     a.click();
   };
 
-  const PIE_TOOLTIP_STYLE = {
+  const PIE_TOOLTIP = {
     fontSize:12, border:"1px solid var(--color-border)",
-    borderRadius:"var(--radius-md)", boxShadow:"var(--shadow-card)",
+    borderRadius:4, fontFamily:"var(--font-sans)",
   };
 
   return (
-    <div style={{ minHeight:"100vh", background:"var(--color-bg)" }}>
+    <div style={{ minHeight:"100vh", background:"var(--color-bg)", fontFamily:"var(--font-sans)" }}>
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <header style={{
         background:"var(--color-surface)",
         borderBottom:"1px solid var(--color-border)",
         padding:"0 var(--space-8)",
-        height:52,
+        height:54,
         position:"sticky", top:0, zIndex:10,
         display:"flex", alignItems:"center",
       }}>
         <div style={{ maxWidth:1400, width:"100%", margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-            <div style={{ width:28, height:28, borderRadius:6, background:"var(--color-accent)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-              <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+
+          <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+            <div style={{ width:30, height:30, borderRadius:4, background:"var(--color-accent)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
                 <rect x="1" y="7" width="3" height="8" fill="white" rx="0.5"/>
                 <rect x="6" y="4" width="3" height="11" fill="white" rx="0.5"/>
                 <rect x="11" y="1" width="3" height="14" fill="white" rx="0.5"/>
               </svg>
             </div>
             <div>
-              <h1 style={{ fontSize:14, fontWeight:700, color:"var(--color-text-primary)", margin:0, lineHeight:1.3 }}>
+              <h1 style={{ fontSize:15, fontWeight:700, fontFamily:SERIF, color:"var(--color-text-primary)", margin:0, lineHeight:1.2 }}>
                 Ontario Mental Health Services
               </h1>
-              <p style={{ fontSize:11, color:"var(--color-text-muted)", margin:0 }}>
+              <p style={{ fontSize:11, color:"var(--color-text-muted)", margin:0, fontFamily:"var(--font-sans)" }}>
                 KHP 2019 MOH Export · {kpis?.totalServices?.toLocaleString() ?? "5,945"} records
               </p>
             </div>
           </div>
 
-          <div style={{ display:"flex", background:"var(--color-bg)", border:"1px solid var(--color-border)", borderRadius:6, padding:2, gap:2 }}>
+          <nav style={{ display:"flex", gap:28, alignItems:"center" }}>
             {(["charts","report"] as const).map(t => (
               <button key={t} onClick={() => setTab(t)} style={{
-                padding:"5px 16px", fontSize:12, fontWeight:500,
-                border:"none", borderRadius:4, cursor:"pointer",
-                transition:"all var(--duration-fast) var(--ease-out)",
-                background:tab===t?"var(--color-surface)":"transparent",
-                color:tab===t?"var(--color-text-primary)":"var(--color-text-muted)",
-                boxShadow:tab===t?"var(--shadow-card)":"none",
+                background:"none", border:"none", borderBottom:`2px solid ${tab===t ? "var(--color-accent)" : "transparent"}`,
+                padding:"4px 0", fontSize:13, fontWeight:tab===t ? 600 : 400,
+                fontFamily:"var(--font-sans)",
+                color: tab===t ? "var(--color-accent)" : "var(--color-text-secondary)",
+                cursor:"pointer", transition:"all var(--duration-fast) var(--ease-out)",
+                letterSpacing:"0.01em",
               }}>
                 {t==="charts" ? "Overview" : "Service Report"}
               </button>
             ))}
-          </div>
+          </nav>
         </div>
       </header>
 
       {/* ── Filter bar ──────────────────────────────────────────────────── */}
-      <div style={{ background:"var(--color-surface)", borderBottom:"1px solid var(--color-border-subtle)", padding:"8px var(--space-8)" }}>
+      <div style={{ background:"var(--color-surface)", borderBottom:"1px solid var(--color-border-subtle)", padding:"9px var(--space-8)" }}>
         <div style={{ maxWidth:1400, margin:"0 auto", display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
 
           <Sel value={filters.county??""} onChange={v=>set("county",v)}
             options={counties as string[]} placeholder="All Counties" width={148} />
-
           <Sel value={filters.taxonomyTerm??""} onChange={v=>set("taxonomyTerm",v)}
             options={taxTerms as string[]} placeholder="All Categories" width={220} />
-
           <Sel value={filters.ageGroup??""} onChange={v=>set("ageGroup",v)}
             options={AGE_GROUPS} placeholder="Any Age Group" width={168} />
-
           <Sel value={filters.gender??""} onChange={v=>set("gender",v)}
             options={GENDER_GROUPS} placeholder="Any Gender" width={128} />
 
-          <div style={{ width:1, height:20, background:"var(--color-border)", margin:"0 4px", flexShrink:0 }} />
+          <div style={{ width:1, height:18, background:"var(--color-border)", margin:"0 4px", flexShrink:0 }} />
 
-          <Toggle label="Bilingual"     active={filters.bilingual==="true"}     onChange={v=>set("bilingual",v?"true":undefined)} />
-          <Toggle label="LGBTQ+"        active={filters.lgbtq==="true"}         onChange={v=>set("lgbtq",v?"true":undefined)} />
+          <Toggle label="Bilingual"      active={filters.bilingual==="true"}     onChange={v=>set("bilingual",v?"true":undefined)} />
+          <Toggle label="LGBTQ+"         active={filters.lgbtq==="true"}         onChange={v=>set("lgbtq",v?"true":undefined)} />
           <Toggle label="Harm Reduction" active={filters.harmReduction==="true"} onChange={v=>set("harmReduction",v?"true":undefined)} />
 
           {activeCount > 0 && (
             <button onClick={clear} style={{
-              fontSize:11, color:"var(--color-text-muted)",
+              fontSize:11, color:"var(--color-text-muted)", fontFamily:"var(--font-sans)",
               background:"none", border:"none", cursor:"pointer",
               textDecoration:"underline", padding:"0 4px", marginLeft:2,
             }}>
@@ -284,41 +293,39 @@ export default function Dashboard() {
       </div>
 
       {/* ── Main ────────────────────────────────────────────────────────── */}
-      <main style={{ maxWidth:1400, margin:"0 auto", padding:"var(--space-6) var(--space-8) var(--space-8)" }}>
+      <main style={{ maxWidth:1400, margin:"0 auto", padding:"var(--space-6) var(--space-8) var(--space-10)" }}>
 
         {/* About */}
         <section style={{ marginBottom:"var(--space-6)" }}>
-          <div style={{ background:"var(--color-surface)", border:"1px solid var(--color-border)", borderRadius:"var(--radius-md)", padding:"var(--space-5) var(--space-6)", display:"flex", alignItems:"flex-start", gap:"var(--space-5)", boxShadow:"var(--shadow-card)" }}>
-            <div style={{ flexShrink:0, width:36, height:36, borderRadius:"var(--radius-md)", background:"var(--color-accent-light)", border:"1px solid #bfdbfe", display:"flex", alignItems:"center", justifyContent:"center" }}>
-              <svg width="17" height="17" viewBox="0 0 20 20" fill="none">
-                <circle cx="10" cy="10" r="9" stroke="#1d4ed8" strokeWidth="1.5"/>
-                <rect x="9.25" y="8.5" width="1.5" height="6" rx="0.5" fill="#1d4ed8"/>
-                <circle cx="10" cy="6.5" r="1" fill="#1d4ed8"/>
+          <div style={{ background:"var(--color-surface)", border:"1px solid var(--color-border)", borderRadius:6, padding:"var(--space-5) var(--space-6)", display:"flex", alignItems:"flex-start", gap:"var(--space-5)" }}>
+            <div style={{ flexShrink:0, width:34, height:34, borderRadius:4, background:"var(--color-accent-light)", border:"1px solid #e0cdb8", display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <svg width="15" height="15" viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="10" r="9" stroke="var(--color-accent)" strokeWidth="1.5"/>
+                <rect x="9.25" y="8.5" width="1.5" height="6" rx="0.5" fill="var(--color-accent)"/>
+                <circle cx="10" cy="6.5" r="1" fill="var(--color-accent)"/>
               </svg>
             </div>
             <div>
-              <p style={{ fontSize:13, fontWeight:600, color:"var(--color-text-primary)", margin:"0 0 5px" }}>
+              <p style={{ fontSize:13, fontWeight:700, fontFamily:SERIF, color:"var(--color-text-primary)", margin:"0 0 5px" }}>
                 About this Dashboard
               </p>
-              <p style={{ fontSize:12, color:"var(--color-text-secondary)", margin:"0 0 10px", lineHeight:1.6, maxWidth:900 }}>
+              <p style={{ fontSize:12, color:"var(--color-text-secondary)", margin:"0 0 10px", lineHeight:1.7, maxWidth:920, fontFamily:"var(--font-sans)" }}>
                 This dashboard analyzes the geographic and demographic distribution of Ontario mental health and addiction services using publicly released government data. It covers service availability across 50 counties, eligibility by age and gender, bilingual access, LGBTQ+ affirming services, and harm reduction approaches. Use the filters above to explore any subset of the data: all charts and totals update in real time.
               </p>
               <div style={{ display:"flex", flexWrap:"wrap", gap:"var(--space-4)", alignItems:"center" }}>
-                <span style={{ fontSize:11, color:"var(--color-text-muted)" }}>
-                  <span style={{ fontWeight:600, color:"var(--color-text-secondary)" }}>Dataset:</span> KHP 2019 MOH Open Data Export
-                </span>
-                <span style={{ color:"var(--color-border)", fontSize:11 }}>·</span>
-                <span style={{ fontSize:11, color:"var(--color-text-muted)" }}>
-                  <span style={{ fontWeight:600, color:"var(--color-text-secondary)" }}>Source:</span> Ontario Ministry of Health via Kids Help Phone
-                </span>
-                <span style={{ color:"var(--color-border)", fontSize:11 }}>·</span>
-                <span style={{ fontSize:11, color:"var(--color-text-muted)" }}>
-                  <span style={{ fontWeight:600, color:"var(--color-text-secondary)" }}>Records:</span> 5,945 service listings · 140+ fields
-                </span>
-                <span style={{ color:"var(--color-border)", fontSize:11 }}>·</span>
-                <span style={{ fontSize:11, color:"var(--color-text-muted)" }}>
-                  <span style={{ fontWeight:600, color:"var(--color-text-secondary)" }}>Coverage:</span> Ontario, Canada · 2019
-                </span>
+                {[
+                  ["Dataset", "KHP 2019 MOH Open Data Export"],
+                  ["Source",  "Ontario Ministry of Health via Kids Help Phone"],
+                  ["Records", "5,945 service listings · 140+ fields"],
+                  ["Coverage","Ontario, Canada · 2019"],
+                ].map(([k,v], i, arr) => (
+                  <span key={k} style={{ display:"flex", alignItems:"center", gap:"var(--space-4)" }}>
+                    <span style={{ fontSize:11, color:"var(--color-text-muted)", fontFamily:"var(--font-sans)" }}>
+                      <span style={{ fontWeight:600, color:"var(--color-text-secondary)" }}>{k}:</span> {v}
+                    </span>
+                    {i < arr.length-1 && <span style={{ color:"var(--color-border)", fontSize:11 }}>·</span>}
+                  </span>
+                ))}
               </div>
             </div>
           </div>
@@ -331,11 +338,11 @@ export default function Dashboard() {
               [0,1,2,3,4].map(i => <KpiSkeleton key={i} />)
             ) : (
               <>
-                <KpiCard label="Total Services"   value={kpis?.totalServices}         sub="Matching current filters"     delay={0}   />
-                <KpiCard label="Counties"         value={kpis?.totalCounties}         sub="Geographic regions covered"   delay={50}  />
-                <KpiCard label="Bilingual"        value={kpis?.bilingualServices}     sub="EN/FR service delivery"       delay={100} />
-                <KpiCard label="LGBTQ+ Affirming" value={kpis?.lgbtqServices}         sub="Inclusive support services"   delay={150} />
-                <KpiCard label="Harm Reduction"   value={kpis?.harmReductionServices} sub="Harm reduction approach"      delay={200} />
+                <KpiCard label="Total Services"   value={kpis?.totalServices}         sub="Matching current filters"   delay={0}   />
+                <KpiCard label="Counties"         value={kpis?.totalCounties}         sub="Geographic regions covered" delay={50}  />
+                <KpiCard label="Bilingual"        value={kpis?.bilingualServices}     sub="EN/FR service delivery"     delay={100} />
+                <KpiCard label="LGBTQ+ Affirming" value={kpis?.lgbtqServices}         sub="Inclusive support services" delay={150} />
+                <KpiCard label="Harm Reduction"   value={kpis?.harmReductionServices} sub="Harm reduction approach"    delay={200} />
               </>
             )}
           </div>
@@ -348,42 +355,37 @@ export default function Dashboard() {
             {/* Row 1: Category + County */}
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"var(--space-5)" }}>
 
-              <div className="card animate-in" style={{ padding:"var(--space-5)", animationDelay:"150ms" }}>
-                <SectionHeader
-                  title="Services by Category"
-                  note="Top 12 service types grouped by taxonomy category" />
+              <div className="card animate-in" style={{ animationDelay:"150ms" }}>
+                <SectionHeader title="Services by Category" note="Top 12 service types grouped by taxonomy category" />
                 {catL ? <ChartSkeleton height={340} /> : (
                   <ResponsiveContainer width="100%" height={340}>
-                    <BarChart data={byCat} layout="vertical" margin={{ left:4, right:24, top:2, bottom:2 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-                      <XAxis type="number" tick={{ fontSize:11, fill:"#94a3b8" }} axisLine={false} tickLine={false} />
-                      <YAxis
-                        type="category" dataKey="category" width={190}
-                        tick={{ fontSize:10, fill:"#475569" }} axisLine={false} tickLine={false}
+                    <BarChart data={byCat} layout="vertical" margin={{ left:4, right:24, top:4, bottom:2 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} horizontal={false} />
+                      <XAxis type="number" tick={{ fontSize:11, fill:TICK_COLOR, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false} />
+                      <YAxis type="category" dataKey="category" width={190}
+                        tick={{ fontSize:10, fill:TICK_DARK, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false}
                         tickFormatter={(v:string) => v.length>32 ? v.slice(0,30)+"…" : v} />
-                      <Tooltip content={<TTip />} cursor={{ fill:"#f8fafc" }} />
+                      <Tooltip content={<TTip />} cursor={{ fill:CURSOR_FILL }} />
                       <Bar dataKey="count" radius={[0,3,3,0]} maxBarSize={18}>
-                        {byCat.map((_:unknown,i:number) => <Cell key={i} fill={CHART_BLUE[i%CHART_BLUE.length]} />)}
+                        {byCat.map((_:unknown,i:number) => <Cell key={i} fill={CHART_WARM[i%CHART_WARM.length]} />)}
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 )}
               </div>
 
-              <div className="card animate-in" style={{ padding:"var(--space-5)", animationDelay:"200ms" }}>
-                <SectionHeader
-                  title="Services by County"
-                  note="Top 20 Ontario counties by total service volume" />
+              <div className="card animate-in" style={{ animationDelay:"200ms" }}>
+                <SectionHeader title="Services by County" note="Top 20 Ontario counties by total service volume" />
                 {ctyL ? <ChartSkeleton height={340} /> : (
                   <ResponsiveContainer width="100%" height={340}>
                     <BarChart data={byCty} layout="vertical" margin={{ left:4, right:24, top:6, bottom:2 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-                      <XAxis type="number" tick={{ fontSize:11, fill:"#94a3b8" }} axisLine={false} tickLine={false} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} horizontal={false} />
+                      <XAxis type="number" tick={{ fontSize:11, fill:TICK_COLOR, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false} />
                       <YAxis type="category" dataKey="county" width={100}
-                        tick={{ fontSize:11, fill:"#475569" }} axisLine={false} tickLine={false} />
-                      <Tooltip content={<TTip />} cursor={{ fill:"#f8fafc" }} />
+                        tick={{ fontSize:11, fill:TICK_DARK, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false} />
+                      <Tooltip content={<TTip />} cursor={{ fill:CURSOR_FILL }} />
                       <Bar dataKey="count" radius={[0,3,3,0]} maxBarSize={14}>
-                        {byCty.map((_:unknown,i:number) => <Cell key={i} fill={CHART_BLUE[i%CHART_BLUE.length]} />)}
+                        {byCty.map((_:unknown,i:number) => <Cell key={i} fill={CHART_WARM[i%CHART_WARM.length]} />)}
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
@@ -394,23 +396,23 @@ export default function Dashboard() {
             {/* Row 2: Age + Gender + Language */}
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"var(--space-5)" }}>
 
-              <div className="card animate-in" style={{ padding:"var(--space-5)", animationDelay:"250ms" }}>
+              <div className="card animate-in" style={{ animationDelay:"250ms" }}>
                 <SectionHeader title="Age Eligibility" note="Services by declared age group" />
                 {ageL ? <ChartSkeleton height={220} /> : (
                   <ResponsiveContainer width="100%" height={220}>
                     <BarChart data={byAge} margin={{ left:0, right:12, top:4, bottom:52 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                      <XAxis dataKey="ageGroup" tick={{ fontSize:10, fill:"#475569" }} axisLine={false} tickLine={false}
+                      <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+                      <XAxis dataKey="ageGroup" tick={{ fontSize:10, fill:TICK_DARK, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false}
                         angle={-30} textAnchor="end" interval={0} />
-                      <YAxis tick={{ fontSize:11, fill:"#94a3b8" }} axisLine={false} tickLine={false} width={34} />
-                      <Tooltip content={<TTip />} cursor={{ fill:"#f8fafc" }} />
-                      <Bar dataKey="count" radius={[3,3,0,0]} fill="#1d4ed8" maxBarSize={40} />
+                      <YAxis tick={{ fontSize:11, fill:TICK_COLOR, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false} width={34} />
+                      <Tooltip content={<TTip />} cursor={{ fill:CURSOR_FILL }} />
+                      <Bar dataKey="count" radius={[3,3,0,0]} fill="#78532a" maxBarSize={40} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
               </div>
 
-              <div className="card animate-in" style={{ padding:"var(--space-5)", animationDelay:"300ms" }}>
+              <div className="card animate-in" style={{ animationDelay:"300ms" }}>
                 <SectionHeader title="Gender Eligibility" note="Services by declared gender eligibility" />
                 {genL ? (
                   <div style={{ height:220, display:"flex", alignItems:"center", justifyContent:"center" }}>
@@ -421,18 +423,16 @@ export default function Dashboard() {
                     <PieChart>
                       <Pie data={byGen} dataKey="count" nameKey="gender"
                         cx="50%" cy="42%" outerRadius={74} innerRadius={38} paddingAngle={3}>
-                        {byGen.map((_:unknown,i:number) => <Cell key={i} fill={PIE_COLORS[i%PIE_COLORS.length]} />)}
+                        {byGen.map((_:unknown,i:number) => <Cell key={i} fill={PIE_WARM[i%PIE_WARM.length]} />)}
                       </Pie>
-                      <Legend
-                        formatter={(v:string) => <span style={{ fontSize:11, color:"#475569" }}>{v}</span>}
-                        iconSize={8} />
-                      <Tooltip formatter={(v:number) => [v.toLocaleString(),"Services"]} contentStyle={PIE_TOOLTIP_STYLE} />
+                      <Legend formatter={(v:string) => <span style={{ fontSize:11, color:TICK_DARK, fontFamily:"var(--font-sans)" }}>{v}</span>} iconSize={7} />
+                      <Tooltip formatter={(v:number) => [v.toLocaleString(),"Services"]} contentStyle={PIE_TOOLTIP} />
                     </PieChart>
                   </ResponsiveContainer>
                 )}
               </div>
 
-              <div className="card animate-in" style={{ padding:"var(--space-5)", animationDelay:"350ms" }}>
+              <div className="card animate-in" style={{ animationDelay:"350ms" }}>
                 <SectionHeader title="Language Availability" note="Bilingual (EN/FR) vs. single-language delivery" />
                 {lanL ? (
                   <div style={{ height:220, display:"flex", alignItems:"center", justifyContent:"center" }}>
@@ -443,12 +443,10 @@ export default function Dashboard() {
                     <PieChart>
                       <Pie data={byLan} dataKey="count" nameKey="language"
                         cx="50%" cy="42%" outerRadius={74} innerRadius={38} paddingAngle={3}>
-                        {byLan.map((_:unknown,i:number) => <Cell key={i} fill={PIE_COLORS[i%PIE_COLORS.length]} />)}
+                        {byLan.map((_:unknown,i:number) => <Cell key={i} fill={PIE_WARM[i%PIE_WARM.length]} />)}
                       </Pie>
-                      <Legend
-                        formatter={(v:string) => <span style={{ fontSize:11, color:"#475569" }}>{v}</span>}
-                        iconSize={8} />
-                      <Tooltip formatter={(v:number) => [v.toLocaleString(),"Services"]} contentStyle={PIE_TOOLTIP_STYLE} />
+                      <Legend formatter={(v:string) => <span style={{ fontSize:11, color:TICK_DARK, fontFamily:"var(--font-sans)" }}>{v}</span>} iconSize={7} />
+                      <Tooltip formatter={(v:number) => [v.toLocaleString(),"Services"]} contentStyle={PIE_TOOLTIP} />
                     </PieChart>
                   </ResponsiveContainer>
                 )}
@@ -462,8 +460,10 @@ export default function Dashboard() {
           <div>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"var(--space-4)", gap:12, flexWrap:"wrap" }}>
               <div>
-                <h2 style={{ fontSize:15, fontWeight:600, margin:0, color:"var(--color-text-primary)" }}>Service Records</h2>
-                <p style={{ fontSize:11, color:"var(--color-text-muted)", margin:"3px 0 0" }}>
+                <h2 style={{ fontSize:18, fontWeight:700, fontFamily:SERIF, margin:0, color:"var(--color-text-primary)" }}>
+                  Service Records
+                </h2>
+                <p style={{ fontSize:11, color:"var(--color-text-muted)", margin:"3px 0 0", fontFamily:"var(--font-sans)" }}>
                   {rptL ? "Loading…" : `${rpt.length.toLocaleString()} records${rpt.length===500?" · showing first 500":""}`}
                 </p>
               </div>
@@ -472,10 +472,10 @@ export default function Dashboard() {
                   type="text" value={search}
                   onChange={e => setSearch(e.target.value)}
                   placeholder="Search service name…"
-                  style={{ padding:"6px 10px", fontSize:12, border:"1px solid var(--color-border)", borderRadius:"var(--radius-sm)", outline:"none", width:220, background:"var(--color-surface)", color:"var(--color-text-primary)" }} />
+                  style={{ padding:"6px 10px", fontSize:12, fontFamily:"var(--font-sans)", border:"1px solid var(--color-border)", borderRadius:4, outline:"none", width:220, background:"var(--color-surface)", color:"var(--color-text-primary)" }} />
                 <button
                   onClick={exportCsv} disabled={!rpt.length}
-                  style={{ padding:"6px 16px", fontSize:12, fontWeight:500, border:"none", borderRadius:"var(--radius-sm)", background:"var(--color-accent)", color:"white", cursor:rpt.length?"pointer":"not-allowed", opacity:rpt.length?1:0.5 }}>
+                  style={{ padding:"6px 18px", fontSize:12, fontWeight:500, fontFamily:"var(--font-sans)", border:"none", borderRadius:4, background:"var(--color-accent)", color:"#fff", cursor:rpt.length?"pointer":"not-allowed", opacity:rpt.length?1:0.5 }}>
                   Export CSV
                 </button>
               </div>
@@ -485,16 +485,16 @@ export default function Dashboard() {
               {rptL ? (
                 <div style={{ padding:"var(--space-8)", display:"flex", flexDirection:"column", gap:14 }}>
                   {[0,1,2,3,4,5,6,7].map(i => (
-                    <div key={i} className="skeleton" style={{ height:16, width:i%3===0?"45%":"75%", borderRadius:"var(--radius-sm)" }} />
+                    <div key={i} className="skeleton" style={{ height:14, width:i%3===0?"40%":"70%" }} />
                   ))}
                 </div>
               ) : (
                 <div style={{ overflowX:"auto" }}>
-                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+                  <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12, fontFamily:"var(--font-sans)" }}>
                     <thead>
                       <tr style={{ background:"var(--color-bg)", borderBottom:"2px solid var(--color-border)" }}>
                         {["Service Name","Category","City","County","Age Group","Gender","Languages","Bilingual","LGBTQ+","Harm Red.","Wait Time"].map(h => (
-                          <th key={h} style={{ padding:"9px 12px", textAlign:"left", fontWeight:600, color:"var(--color-text-muted)", letterSpacing:"0.04em", textTransform:"uppercase", fontSize:10, whiteSpace:"nowrap" }}>{h}</th>
+                          <th key={h} style={{ padding:"9px 12px", textAlign:"left", fontWeight:600, color:"var(--color-text-muted)", letterSpacing:"0.06em", textTransform:"uppercase", fontSize:10, whiteSpace:"nowrap", fontFamily:"var(--font-sans)" }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -503,7 +503,7 @@ export default function Dashboard() {
                         <tr><td colSpan={11} style={{ padding:"var(--space-8)", textAlign:"center", color:"var(--color-text-muted)", fontSize:13 }}>No records match the current filters.</td></tr>
                       ) : rpt.map((row, i) => (
                         <tr key={row.id}
-                          style={{ borderBottom:"1px solid var(--color-border-subtle)", background:i%2===0?"var(--color-surface)":"var(--color-bg)", transition:"background var(--duration-fast)" }}
+                          style={{ borderBottom:`1px solid var(--color-border-subtle)`, background:i%2===0?"var(--color-surface)":"var(--color-bg)", transition:`background var(--duration-fast)` }}
                           onMouseEnter={e => (e.currentTarget.style.background="var(--color-accent-light)")}
                           onMouseLeave={e => (e.currentTarget.style.background=i%2===0?"var(--color-surface)":"var(--color-bg)")}>
                           <td style={{ padding:"8px 12px", maxWidth:220 }}>
@@ -544,7 +544,7 @@ export default function Dashboard() {
         )}
       </main>
 
-      <footer style={{ borderTop:"1px solid var(--color-border-subtle)", padding:"var(--space-4) var(--space-8)", textAlign:"center", fontSize:11, color:"var(--color-text-muted)" }}>
+      <footer style={{ borderTop:"1px solid var(--color-border-subtle)", padding:"var(--space-4) var(--space-8)", textAlign:"center", fontSize:11, color:"var(--color-text-muted)", fontFamily:"var(--font-sans)" }}>
         Data source: Kids Help Phone: Ontario Ministry of Health Export 2019 · For internal analytics use only
       </footer>
     </div>
