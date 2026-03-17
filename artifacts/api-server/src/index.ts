@@ -15,13 +15,14 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-initDb()
-  .then(() => {
-    app.listen(port, () => {
-      console.log(`Server listening on port ${port}`);
-    });
-  })
-  .catch((err) => {
-    console.error("[initDb] Fatal error during startup:", err);
-    process.exit(1);
+// Open the port immediately so Cloud Run / health checks pass right away.
+// Database seeding runs in the background and does not block startup.
+app.listen(port, () => {
+  console.log(`Server listening on port ${port}`);
+
+  initDb().catch((err) => {
+    console.error("[initDb] Background seed failed:", err);
+    // Non-fatal: server stays up, API endpoints return empty results
+    // until data is available on the next restart.
   });
+});
