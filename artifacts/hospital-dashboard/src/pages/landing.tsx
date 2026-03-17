@@ -35,13 +35,6 @@ export default function Landing() {
       {/* ── Top bar ───────────────────────────────────────────────────── */}
       <header style={{ height:50, borderBottom:"1px solid var(--color-border-subtle)", padding:"0 var(--space-8)", display:"flex", alignItems:"center", justifyContent:"space-between", background:"var(--color-surface)" }}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <div style={{ width:26, height:26, borderRadius:4, background:"var(--color-accent)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-              <rect x="1" y="7" width="3" height="8" fill="white" rx="0.5"/>
-              <rect x="6" y="4" width="3" height="11" fill="white" rx="0.5"/>
-              <rect x="11" y="1" width="3" height="14" fill="white" rx="0.5"/>
-            </svg>
-          </div>
           <span style={{ fontSize:13, fontWeight:600, fontFamily:SERIF, color:"var(--color-text-primary)" }}>
             Ontario Mental Health Services
           </span>

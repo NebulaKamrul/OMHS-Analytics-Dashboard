@@ -354,13 +354,6 @@ export default function Dashboard() {
       }}>
         <div style={{ maxWidth:1400, width:"100%", margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
           <a href={import.meta.env.BASE_URL} style={{ display:"flex", alignItems:"center", gap:12, textDecoration:"none" }}>
-            <div style={{ width:30, height:30, borderRadius:4, background:"var(--color-accent)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <rect x="1" y="7" width="3" height="8" fill="white" rx="0.5"/>
-                <rect x="6" y="4" width="3" height="11" fill="white" rx="0.5"/>
-                <rect x="11" y="1" width="3" height="14" fill="white" rx="0.5"/>
-              </svg>
-            </div>
             <div style={{ textAlign:"left" }}>
               <h1 style={{ fontSize:15, fontWeight:700, fontFamily:SERIF, color:"var(--color-text-primary)", margin:0, lineHeight:1.2 }}>
                 Ontario Mental Health Services
