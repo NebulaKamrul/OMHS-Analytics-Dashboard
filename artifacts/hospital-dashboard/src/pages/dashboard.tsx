@@ -27,15 +27,12 @@ import {
   useGetFilterTaxonomyTerms,
 } from "@workspace/api-client-react";
 
-const CHART_WARM = ["#78532a","#a0723d","#c4a882","#5c3e1f","#d9c4a8","#8f6335","#e8d9c4","#4a3319","#b89060","#6e4d27","#cfb090","#3d2a12"];
-const PIE_WARM   = ["#78532a","#c4a882","#a0723d","#e8d9c4"];
+const CHART_WARM  = ["#78532a","#a0723d","#c4a882","#5c3e1f","#d9c4a8","#8f6335","#e8d9c4","#4a3319","#b89060","#6e4d27","#cfb090","#3d2a12"];
+const COUNTY_WARM = ["#78532a","#8f6335","#a0723d","#b08050","#c4906a","#78532a","#8f6335","#a0723d","#b08050","#c4906a","#78532a","#8f6335","#a0723d","#b08050","#c4906a","#78532a","#8f6335","#a0723d","#b08050","#c4906a"];
+const PIE_WARM    = ["#78532a","#c4a882","#a0723d","#e8d9c4"];
 
-const SERIF       = "'Playfair Display', Georgia, serif";
-const TICK_COLOR  = "#9c9590";
-const TICK_DARK   = "#6b6560";
-const GRID_COLOR  = "#f0ece6";
-const CURSOR_FILL = "#faf8f4";
-const PAGE_SIZE   = 100;
+const SERIF    = "'Playfair Display', Georgia, serif";
+const PAGE_SIZE = 100;
 
 interface Filters {
   county?: string;
@@ -64,17 +61,51 @@ function KpiSkeleton() {
   );
 }
 
-function KpiCard({ label, value, sub, delay=0 }: { label:string; value?:number; sub?:string; delay?:number }) {
+function KpiCard({ label, value, sub, pct, delay=0 }: { label:string; value?:number; sub?:string; pct?:number; delay?:number }) {
   return (
     <div className="card-kpi animate-in" style={{ padding:"var(--space-6)", animationDelay:`${delay}ms` }}>
       <p style={{ fontSize:"var(--text-xs)", fontWeight:600, letterSpacing:"0.09em", textTransform:"uppercase", color:"var(--color-text-muted)", margin:"0 0 10px", fontFamily:"var(--font-sans)" }}>
         {label}
       </p>
-      <p style={{ fontSize:"var(--text-2xl)", fontWeight:700, fontFamily:SERIF, color:"var(--color-text-primary)", lineHeight:1, margin:"0 0 6px" }}>
+      <p style={{ fontSize:"var(--text-2xl)", fontWeight:700, fontFamily:SERIF, color:"var(--color-text-primary)", lineHeight:1, margin:"0 0 5px" }}>
         {value?.toLocaleString() ?? "—"}
       </p>
+      {pct !== undefined && (
+        <p style={{ fontSize:"var(--text-xs)", color:"var(--color-accent-mid)", fontWeight:600, margin:"0 0 4px", fontFamily:"var(--font-sans)" }}>
+          {pct === 0 ? "<1" : pct}% of services
+        </p>
+      )}
       {sub && <p style={{ fontSize:"var(--text-xs)", color:"var(--color-text-muted)", margin:0, fontFamily:"var(--font-sans)" }}>{sub}</p>}
     </div>
+  );
+}
+
+function CategoryTick({ x, y, payload, fill = "#6b6560" }: { x?: number; y?: number; payload?: { value: string }; fill?: string }) {
+  const name = payload?.value ?? "";
+  let lines: string[];
+  if (name.length <= 26) {
+    lines = [name];
+  } else {
+    const mid = Math.ceil(name.length / 2);
+    const brk = name.lastIndexOf(" ", mid + 6);
+    const at  = brk > 4 ? brk : name.indexOf(" ", mid - 6);
+    if (at > 0) {
+      const rest = name.slice(at + 1);
+      lines = [name.slice(0, at), rest.length > 27 ? rest.slice(0, 25) + "…" : rest];
+    } else {
+      lines = [name.slice(0, 26), name.slice(26, 50) + (name.length > 50 ? "…" : "")];
+    }
+  }
+  const dy = lines.length === 2 ? -7 : 0;
+  return (
+    <g transform={`translate(${x ?? 0},${y ?? 0})`}>
+      {lines.map((line, i) => (
+        <text key={i} x={0} y={dy + i * 14} textAnchor="end"
+          fill={fill} fontSize={10} fontFamily="Inter,sans-serif" dominantBaseline="middle">
+          {line}
+        </text>
+      ))}
+    </g>
   );
 }
 
@@ -236,6 +267,11 @@ function buildContext(filters: Filters, total?: number): string {
 export default function Dashboard() {
   const [, navigate] = useLocation();
   const { isDark, toggle: toggleTheme } = useTheme();
+  const tickColor   = isDark ? "#a09080" : "#9c9590";
+  const tickDark    = isDark ? "#c8baa8" : "#6b6560";
+  const gridColor   = isDark ? "#3d3429" : "#f0ece6";
+  const cursorFill  = isDark ? "#2d261d" : "#faf8f4";
+  const pieTTip     = { background:"var(--color-surface)", border:"1px solid var(--color-border)", borderRadius:4, fontSize:12, fontFamily:"var(--font-sans)" };
   const [filters, setFilters]   = useState<Filters>({});
   const [search, setSearch]     = useState("");
   const [tab, setTab]           = useState<"charts"|"report">("charts");
@@ -327,7 +363,6 @@ export default function Dashboard() {
     a.click();
   };
 
-  const PIE_TOOLTIP = { fontSize:12, border:"1px solid var(--color-border)", borderRadius:4, fontFamily:"var(--font-sans)" };
 
   const genTotal = byGen.reduce((s:number,r:{count:number})=>s+r.count, 0);
   const lanTotal = byLan.reduce((s:number,r:{count:number})=>s+r.count, 0);
@@ -379,8 +414,10 @@ export default function Dashboard() {
               </button>
             ))}
             <button onClick={toggleTheme} title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-              style={{ padding:"5px 8px", background:"none", border:"1px solid var(--color-border)", borderRadius:5, cursor:"pointer", color:"var(--color-text-secondary)", fontSize:13, lineHeight:1, display:"flex", alignItems:"center" }}>
-              {isDark ? "☀" : "☾"}
+              style={{ position:"relative", width:44, height:24, borderRadius:12, background:isDark?"var(--color-accent)":"var(--color-border)", border:"none", cursor:"pointer", padding:0, flexShrink:0, transition:"background 200ms" }}>
+              <span style={{ position:"absolute", top:3, left:isDark?23:3, width:18, height:18, borderRadius:"50%", background:"var(--color-surface)", transition:"left 200ms", display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, lineHeight:1, pointerEvents:"none" }}>
+                {isDark ? "☀" : "☾"}
+              </span>
             </button>
           </nav>
         </div>
@@ -440,9 +477,9 @@ export default function Dashboard() {
               <>
                 <KpiCard label="Total Services"   value={kpis?.totalServices}         sub="Matching current filters"    delay={0}   />
                 <KpiCard label="Counties"         value={kpis?.totalCounties}         sub="Geographic regions covered"  delay={50}  />
-                <KpiCard label="Bilingual"        value={kpis?.bilingualServices}     sub="EN/FR service delivery"      delay={100} />
-                <KpiCard label="LGBTQ+ Affirming" value={kpis?.lgbtqServices}         sub="Inclusive support services"  delay={150} />
-                <KpiCard label="Harm Reduction"   value={kpis?.harmReductionServices} sub="Explicitly flagged in dataset" delay={200} />
+                <KpiCard label="Bilingual"        value={kpis?.bilingualServices}     pct={kpis?.totalServices ? Math.round((kpis.bilingualServices??0)/kpis.totalServices*100) : undefined} sub="EN/FR service delivery"      delay={100} />
+                <KpiCard label="LGBTQ+ Affirming" value={kpis?.lgbtqServices}         pct={kpis?.totalServices ? Math.round((kpis.lgbtqServices??0)/kpis.totalServices*100) : undefined}     sub="Inclusive support services"  delay={150} />
+                <KpiCard label="Harm Reduction"   value={kpis?.harmReductionServices} pct={kpis?.totalServices ? Math.round((kpis.harmReductionServices??0)/kpis.totalServices*100) : undefined} sub="Explicitly flagged in dataset" delay={200} />
               </>
             )}
           </div>
@@ -468,17 +505,16 @@ export default function Dashboard() {
                 {catL ? <ChartSkeleton height={340} /> : byCat.length === 0 ? <EmptyChart height={340} /> : (
                   <ResponsiveContainer width="100%" height={340}>
                     <BarChart data={byCat} layout="vertical" margin={{ left:4, right:52, top:4, bottom:2 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} horizontal={false} />
-                      <XAxis type="number" tick={{ fontSize:11, fill:TICK_COLOR, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false} />
-                      <YAxis type="category" dataKey="category" width={210}
-                        tick={{ fontSize:10, fill:TICK_DARK, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false}
-                        tickFormatter={(v:string) => v.length>34 ? v.slice(0,32)+"…" : v} />
-                      <Tooltip content={<TTip />} cursor={{ fill:CURSOR_FILL }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={gridColor} horizontal={false} />
+                      <XAxis type="number" tick={{ fontSize:11, fill:tickColor, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false} />
+                      <YAxis type="category" dataKey="category" width={230}
+                        tick={<CategoryTick fill={tickDark} />} axisLine={false} tickLine={false} />
+                      <Tooltip content={<TTip />} cursor={{ fill:cursorFill }} />
                       <Bar dataKey="count" radius={[0,3,3,0]} maxBarSize={18} style={{ cursor:"pointer" }}
                         isAnimationActive={false}
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         label={(p: any) => p.value == null ? null : (
-                          <text key={p.index} x={p.x+p.width+5} y={p.y+(p.height??18)/2} fill={TICK_DARK}
+                          <text key={p.index} x={p.x+p.width+5} y={p.y+(p.height??18)/2} fill={tickDark}
                             fontSize={10} dominantBaseline="middle" fontFamily="Inter,sans-serif">
                             {Number(p.value).toLocaleString()}
                           </text>
@@ -499,23 +535,23 @@ export default function Dashboard() {
                 {ctyL ? <ChartSkeleton height={340} /> : byCty.length === 0 ? <EmptyChart height={340} /> : (
                   <ResponsiveContainer width="100%" height={340}>
                     <BarChart data={byCty} layout="vertical" margin={{ left:4, right:52, top:6, bottom:2 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} horizontal={false} />
-                      <XAxis type="number" tick={{ fontSize:11, fill:TICK_COLOR, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false} />
-                      <YAxis type="category" dataKey="county" width={100}
-                        tick={{ fontSize:11, fill:TICK_DARK, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false} />
-                      <Tooltip content={<TTip />} cursor={{ fill:CURSOR_FILL }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={gridColor} horizontal={false} />
+                      <XAxis type="number" tick={{ fontSize:11, fill:tickColor, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false} />
+                      <YAxis type="category" dataKey="county" width={108}
+                        tick={{ fontSize:11, fill:tickDark, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false} />
+                      <Tooltip content={<TTip />} cursor={{ fill:cursorFill }} />
                       <Bar dataKey="count" radius={[0,3,3,0]} maxBarSize={14} style={{ cursor:"pointer" }}
                         isAnimationActive={false}
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         label={(p: any) => p.value == null ? null : (
-                          <text key={p.index} x={p.x+p.width+5} y={p.y+(p.height??14)/2} fill={TICK_DARK}
+                          <text key={p.index} x={p.x+p.width+5} y={p.y+(p.height??14)/2} fill={tickDark}
                             fontSize={10} dominantBaseline="middle" fontFamily="Inter,sans-serif">
                             {Number(p.value).toLocaleString()}
                           </text>
                         )}
                         onClick={(data: {county:string}) => set("county", filters.county===data.county ? undefined : data.county)}>
                         {byCty.map((entry:{county:string},i:number) => (
-                          <Cell key={i} fill={CHART_WARM[i%CHART_WARM.length]}
+                          <Cell key={i} fill={COUNTY_WARM[i%COUNTY_WARM.length]}
                             opacity={filters.county && filters.county!==entry.county ? 0.35 : 1} />
                         ))}
                       </Bar>
@@ -533,15 +569,15 @@ export default function Dashboard() {
                 {ageL ? <ChartSkeleton height={260} /> : byAge.length === 0 ? <EmptyChart height={260} /> : (
                   <ResponsiveContainer width="100%" height={260}>
                     <BarChart data={byAge} margin={{ left:0, right:12, top:4, bottom:52 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
-                      <XAxis dataKey="ageGroup" tick={{ fontSize:10, fill:TICK_DARK, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false} angle={-30} textAnchor="end" interval={0} />
-                      <YAxis tick={{ fontSize:11, fill:TICK_COLOR, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false} width={34} />
-                      <Tooltip content={<TTip />} cursor={{ fill:CURSOR_FILL }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
+                      <XAxis dataKey="ageGroup" tick={{ fontSize:10, fill:tickDark, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false} angle={-30} textAnchor="end" interval={0} />
+                      <YAxis tick={{ fontSize:11, fill:tickColor, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false} width={34} />
+                      <Tooltip content={<TTip />} cursor={{ fill:cursorFill }} />
                       <Bar dataKey="count" radius={[3,3,0,0]} fill="#78532a" maxBarSize={40}
                         isAnimationActive={false}
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         label={(p: any) => p.value == null ? null : (
-                          <text key={p.index} x={p.x+(p.width??0)/2} y={p.y-5} fill={TICK_DARK}
+                          <text key={p.index} x={p.x+(p.width??0)/2} y={p.y-5} fill={tickDark}
                             fontSize={10} textAnchor="middle" fontFamily="Inter,sans-serif">
                             {Number(p.value).toLocaleString()}
                           </text>
@@ -564,10 +600,10 @@ export default function Dashboard() {
                         cx="50%" cy="45%" outerRadius={84} innerRadius={44} paddingAngle={3}>
                         {byGen.map((_:unknown,i:number) => <Cell key={i} fill={PIE_WARM[i%PIE_WARM.length]} />)}
                       </Pie>
-                      <Legend formatter={(v:string) => <span style={{ fontSize:11, color:TICK_DARK, fontFamily:"var(--font-sans)" }}>{v}</span>} iconSize={7} />
+                      <Legend formatter={(v:string) => <span style={{ fontSize:11, color:tickDark, fontFamily:"var(--font-sans)" }}>{v}</span>} iconSize={7} />
                       <Tooltip
                         formatter={(v:number) => [`${v.toLocaleString()} (${genTotal>0?Math.round(v/genTotal*100):0}%)`, "Services"]}
-                        contentStyle={PIE_TOOLTIP} />
+                        contentStyle={pieTTip} />
                     </PieChart>
                   </ResponsiveContainer>
                 )}
@@ -586,10 +622,10 @@ export default function Dashboard() {
                         cx="50%" cy="45%" outerRadius={84} innerRadius={44} paddingAngle={3}>
                         {byLan.map((_:unknown,i:number) => <Cell key={i} fill={PIE_WARM[i%PIE_WARM.length]} />)}
                       </Pie>
-                      <Legend formatter={(v:string) => <span style={{ fontSize:11, color:TICK_DARK, fontFamily:"var(--font-sans)" }}>{v}</span>} iconSize={7} />
+                      <Legend formatter={(v:string) => <span style={{ fontSize:11, color:tickDark, fontFamily:"var(--font-sans)" }}>{v}</span>} iconSize={7} />
                       <Tooltip
                         formatter={(v:number) => [`${v.toLocaleString()} (${lanTotal>0?Math.round(v/lanTotal*100):0}%)`, "Services"]}
-                        contentStyle={PIE_TOOLTIP} />
+                        contentStyle={pieTTip} />
                     </PieChart>
                   </ResponsiveContainer>
                 )}

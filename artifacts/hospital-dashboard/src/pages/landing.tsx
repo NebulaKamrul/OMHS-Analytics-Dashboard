@@ -35,13 +35,15 @@ export default function Landing() {
       {/* ── Top bar ───────────────────────────────────────────────────── */}
       <header style={{ height:50, borderBottom:"1px solid var(--color-border-subtle)", padding:"0 var(--space-8)", display:"flex", alignItems:"center", justifyContent:"space-between", background:"var(--color-surface)" }}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <span style={{ fontSize:13, fontWeight:600, fontFamily:SERIF, color:"var(--color-text-primary)" }}>
+          <span style={{ fontSize:13, fontWeight:600, fontFamily:SERIF, color:"var(--color-accent)" }}>
             Ontario Mental Health Services
           </span>
         </div>
         <button onClick={toggleTheme} title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-          style={{ padding:"5px 8px", background:"none", border:"1px solid var(--color-border)", borderRadius:5, cursor:"pointer", color:"var(--color-text-secondary)", fontSize:13, lineHeight:1, display:"flex", alignItems:"center" }}>
-          {isDark ? "☀" : "☾"}
+          style={{ position:"relative", width:44, height:24, borderRadius:12, background:isDark?"var(--color-accent)":"var(--color-border)", border:"none", cursor:"pointer", padding:0, flexShrink:0, transition:"background 200ms" }}>
+          <span style={{ position:"absolute", top:3, left:isDark?23:3, width:18, height:18, borderRadius:"50%", background:"var(--color-surface)", transition:"left 200ms", display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, lineHeight:1, pointerEvents:"none" }}>
+            {isDark ? "☀" : "☾"}
+          </span>
         </button>
       </header>
 
