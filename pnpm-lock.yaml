@@ -184,6 +184,9 @@ importers:
       express:
         specifier: ^5
         version: 5.2.1
+      xlsx:
+        specifier: ^0.18.5
+        version: 0.18.5
     devDependencies:
       '@types/cookie-parser':
         specifier: ^1.4.10
@@ -641,7 +644,7 @@ importers:
         specifier: workspace:*
         version: link:../lib/db
       xlsx:
-        specifier: ^0.18.5
+        specifier: '*'
         version: 0.18.5
     devDependencies:
       '@types/node':

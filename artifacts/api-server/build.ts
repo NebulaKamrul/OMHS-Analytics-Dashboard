@@ -1,7 +1,7 @@
 import path from "path";
 import { fileURLToPath } from "url";
 import { build as esbuild } from "esbuild";
-import { rm, readFile } from "fs/promises";
+import { rm, readFile, copyFile } from "fs/promises";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -63,10 +63,21 @@ async function buildAll() {
     define: {
       "process.env.NODE_ENV": '"production"',
     },
+    // Expose CJS __dirname as a globalThis property so ESM-style code can access it
+    banner: {
+      js: "globalThis.__dirname = __dirname;",
+    },
     minify: true,
     external: externals,
     logLevel: "info",
   });
+
+  // Copy the KHP xlsx so initDb can seed the production database on first start
+  await copyFile(
+    path.resolve(__dirname, "src/khp_2019_moh_export.xlsx"),
+    path.resolve(distDir, "khp_2019_moh_export.xlsx"),
+  );
+  console.log("copied khp_2019_moh_export.xlsx to dist/");
 }
 
 buildAll().catch((err) => {

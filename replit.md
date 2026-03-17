@@ -63,6 +63,12 @@ pnpm --filter @workspace/scripts run import
 
 Reads the Excel file, cleans/transforms 5,945 rows, and inserts into PostgreSQL.
 
+### Auto-seed on startup
+
+`artifacts/api-server/src/initDb.ts` — runs automatically before the server binds to its port. Checks `COUNT(*) FROM services`; if 0, reads the bundled xlsx (`artifacts/api-server/src/khp_2019_moh_export.xlsx`) and imports all 5,945 rows in batches of 200. Subsequent restarts detect the existing rows and skip immediately.
+
+The xlsx is also copied to `dist/` by `build.ts` (for production deployments). The esbuild CJS bundle injects `globalThis.__dirname` via a banner so `initDb.ts` can resolve the xlsx path in both dev (ESM/tsx) and production (CJS bundle) modes.
+
 ## API Routes
 
 - `GET /api/analytics/kpis` — KPI aggregations with filter support
