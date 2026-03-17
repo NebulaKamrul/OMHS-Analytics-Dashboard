@@ -65,14 +65,22 @@ export default function Landing() {
             An interactive analysis of 5,945 publicly funded mental health and addiction services across Ontario, drawn from the 2019 Ministry of Health open data export. Explore geographic distribution, demographic eligibility, language access, and service specializations.
           </p>
 
-          <div style={{ display:"flex", alignItems:"center", gap:14, flexWrap:"wrap", marginBottom:56 }}>
-            <button
-              onClick={() => navigate("/dashboard")}
-              style={{ padding:"11px 28px", fontSize:14, fontWeight:600, fontFamily:"var(--font-sans)", background:"var(--color-accent)", color:"#fff", border:"none", borderRadius:5, cursor:"pointer", letterSpacing:"0.01em" }}>
-              View Dashboard
-            </button>
-            <span style={{ fontSize:12, color:"var(--color-text-muted)" }}>
-              No login required · all data is publicly available
+          <div style={{ display:"flex", flexDirection:"column", gap:12, marginBottom:56 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:14, flexWrap:"wrap" }}>
+              <button
+                onClick={() => navigate("/dashboard")}
+                style={{ padding:"11px 28px", fontSize:14, fontWeight:600, fontFamily:"var(--font-sans)", background:"var(--color-accent)", color:"#fff", border:"none", borderRadius:5, cursor:"pointer", letterSpacing:"0.01em" }}>
+                View Dashboard
+              </button>
+              <span style={{ fontSize:12, color:"var(--color-text-muted)" }}>
+                No login required · all data is publicly available
+              </span>
+            </div>
+            <span style={{ fontSize:11, color:"var(--color-text-muted)", fontFamily:"var(--font-sans)", display:"flex", alignItems:"center", gap:5 }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+              </svg>
+              Best viewed on a desktop
             </span>
           </div>
 
