@@ -8,11 +8,11 @@
  * Filters propagate to every query so all panels stay consistent.
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, PieChart, Pie, Cell, Legend,
+  ResponsiveContainer, PieChart, Pie, Cell, Legend, LabelList,
 } from "recharts";
 import {
   useGetAnalyticsKpis,
@@ -26,14 +26,15 @@ import {
   useGetFilterTaxonomyTerms,
 } from "@workspace/api-client-react";
 
-const CHART_WARM  = ["#78532a","#a0723d","#c4a882","#5c3e1f","#d9c4a8","#8f6335","#e8d9c4","#4a3319","#b89060","#6e4d27","#cfb090","#3d2a12"];
-const PIE_WARM    = ["#78532a","#c4a882","#a0723d","#e8d9c4"];
+const CHART_WARM = ["#78532a","#a0723d","#c4a882","#5c3e1f","#d9c4a8","#8f6335","#e8d9c4","#4a3319","#b89060","#6e4d27","#cfb090","#3d2a12"];
+const PIE_WARM   = ["#78532a","#c4a882","#a0723d","#e8d9c4"];
 
-const SERIF  = "'Playfair Display', Georgia, serif";
+const SERIF       = "'Playfair Display', Georgia, serif";
 const TICK_COLOR  = "#9c9590";
 const TICK_DARK   = "#6b6560";
 const GRID_COLOR  = "#f0ece6";
 const CURSOR_FILL = "#faf8f4";
+const PAGE_SIZE   = 100;
 
 interface Filters {
   county?: string;
@@ -48,12 +49,16 @@ interface Filters {
 const AGE_GROUPS    = ["Children (0–11)","Adolescents (12–17)","Youth & Young Adults (12–25)","Adults (18+)","All Ages"];
 const GENDER_GROUPS = ["Female Only","Male Only","All Genders"];
 
+type SortDir = "asc" | "desc";
+
+// ── Sub-components ──────────────────────────────────────────────────────────
+
 function KpiSkeleton() {
   return (
     <div className="card-kpi" style={{ padding:"var(--space-6)" }}>
       <div className="skeleton" style={{ height:9, width:"55%", marginBottom:14 }} />
       <div className="skeleton" style={{ height:32, width:"40%", marginBottom:10 }} />
-      <div className="skeleton" style={{ height:8, width:"65%"  }} />
+      <div className="skeleton" style={{ height:8, width:"65%" }} />
     </div>
   );
 }
@@ -78,6 +83,20 @@ function ChartSkeleton({ height=300 }: { height?:number }) {
       {[65,45,80,35,70,50,85,40,60,55].map((h,i) => (
         <div key={i} className="skeleton" style={{ flex:1, height:`${h}%` }} />
       ))}
+    </div>
+  );
+}
+
+function EmptyChart({ height=280 }: { height?:number }) {
+  return (
+    <div style={{ height, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10 }}>
+      <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+        <rect x="2" y="14" width="6" height="16" rx="1" fill="var(--color-border)" />
+        <rect x="13" y="8" width="6" height="22" rx="1" fill="var(--color-border)" />
+        <rect x="24" y="18" width="6" height="12" rx="1" fill="var(--color-border)" />
+        <line x1="0" y1="30.5" x2="32" y2="30.5" stroke="var(--color-border)" strokeWidth="1"/>
+      </svg>
+      <p style={{ fontSize:12, color:"var(--color-text-muted)", margin:0, fontFamily:"var(--font-sans)" }}>No data for this selection</p>
     </div>
   );
 }
@@ -123,23 +142,19 @@ function Toggle({ label, active, onChange }: { label:string; active:boolean; onC
   );
 }
 
-function Sel({
-  value, onChange, options, placeholder, width=150,
-}: {
-  value:string; onChange:(v:string)=>void; options:string[];
-  placeholder:string; width?:number;
+function Sel({ value, onChange, options, placeholder, width=150 }: {
+  value:string; onChange:(v:string)=>void; options:string[]; placeholder:string; width?:number;
 }) {
   return (
     <select
       value={value}
       onChange={e => onChange(e.target.value)}
       style={{
-        padding:"5px 8px", fontSize:12,
-        fontFamily:"var(--font-sans)",
+        padding:"5px 8px", fontSize:12, fontFamily:"var(--font-sans)",
         border:`1px solid ${value ? "var(--color-accent)" : "var(--color-border)"}`,
         borderRadius:4,
-        background: value ? "var(--color-accent-light)" : "var(--color-surface)",
-        color: value ? "var(--color-accent)" : "var(--color-text-secondary)",
+        background:value ? "var(--color-accent-light)" : "var(--color-surface)",
+        color:value ? "var(--color-accent)" : "var(--color-text-secondary)",
         cursor:"pointer", outline:"none",
         width, maxWidth:width, minWidth:width,
         transition:"border-color var(--duration-fast) var(--ease-out)",
@@ -147,6 +162,24 @@ function Sel({
       <option value="">{placeholder}</option>
       {options.map(o => <option key={o} value={o}>{o}</option>)}
     </select>
+  );
+}
+
+function FilterPill({ label, onRemove }: { label:string; onRemove:()=>void }) {
+  return (
+    <span style={{
+      display:"inline-flex", alignItems:"center", gap:5,
+      padding:"2px 8px 2px 10px", fontSize:11, fontFamily:"var(--font-sans)",
+      background:"var(--color-accent-light)", color:"var(--color-accent)",
+      border:"1px solid #e0cdb8", borderRadius:20,
+    }}>
+      {label}
+      <button onClick={onRemove} style={{
+        background:"none", border:"none", cursor:"pointer", padding:0,
+        color:"var(--color-accent)", fontSize:13, lineHeight:1, opacity:0.7,
+        display:"flex", alignItems:"center",
+      }}>×</button>
+    </span>
   );
 }
 
@@ -160,11 +193,36 @@ function BoolCell({ value }: { value?:boolean|null }) {
   );
 }
 
+function SortTh({ label, sortK, current, dir, onSort }: {
+  label:string; sortK:string; current:string; dir:SortDir; onSort:(k:string)=>void;
+}) {
+  const active = current === sortK;
+  return (
+    <th
+      onClick={() => onSort(sortK)}
+      style={{
+        padding:"9px 12px", textAlign:"left", fontWeight:600,
+        color: active ? "var(--color-accent)" : "var(--color-text-muted)",
+        letterSpacing:"0.06em", textTransform:"uppercase", fontSize:10,
+        whiteSpace:"nowrap", fontFamily:"var(--font-sans)",
+        cursor:"pointer", userSelect:"none",
+        borderBottom: active ? `2px solid var(--color-accent)` : "2px solid transparent",
+      }}>
+      {label}{active ? (dir==="asc" ? " ↑" : " ↓") : ""}
+    </th>
+  );
+}
+
+// ── Main component ───────────────────────────────────────────────────────────
+
 export default function Dashboard() {
   const [, navigate] = useLocation();
-  const [filters, setFilters] = useState<Filters>({});
-  const [search, setSearch]   = useState("");
-  const [tab, setTab]         = useState<"charts"|"report">("charts");
+  const [filters, setFilters]   = useState<Filters>({});
+  const [search, setSearch]     = useState("");
+  const [tab, setTab]           = useState<"charts"|"report">("charts");
+  const [sortKey, setSortKey]   = useState("publicName");
+  const [sortDir, setSortDir]   = useState<SortDir>("asc");
+  const [page, setPage]         = useState(1);
 
   const set = (k: keyof Filters, v: string|undefined) =>
     setFilters(f => ({ ...f, [k]: v || undefined }));
@@ -185,6 +243,21 @@ export default function Dashboard() {
     { query: { enabled: tab === "report" } }
   );
 
+  useEffect(() => { setPage(1); }, [rpt, sortKey, sortDir]);
+
+  const sorted = [...rpt].sort((a, b) => {
+    const va = String((a as Record<string,unknown>)[sortKey] ?? "");
+    const vb = String((b as Record<string,unknown>)[sortKey] ?? "");
+    return sortDir === "asc" ? va.localeCompare(vb) : vb.localeCompare(va);
+  });
+  const totalPages  = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const pagedRows   = sorted.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
+
+  const handleSort = (k: string) => {
+    if (k === sortKey) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortKey(k); setSortDir("asc"); }
+  };
+
   const exportCsv = () => {
     if (!rpt.length) return;
     const hdrs = ["ID","Public Name","Official Name","Category","City","County","Age Group","Gender","Languages","Bilingual","LGBTQ+","Harm Reduction","Wait Time","Website"];
@@ -193,41 +266,43 @@ export default function Dashboard() {
       `"${(r.publicName??'').replace(/"/g,'""')}"`,
       `"${(r.officialName??'').replace(/"/g,'""')}"`,
       `"${(r.category??'').replace(/"/g,'""')}"`,
-      r.physicalCity??'',
-      r.physicalCounty??'',
-      r.eligibilityAgeGroup??'',
-      r.eligibilityByGender??'',
+      r.physicalCity??'', r.physicalCounty??'',
+      r.eligibilityAgeGroup??'', r.eligibilityByGender??'',
       `"${(r.languagesOfferedList??'').replace(/"/g,'""')}"`,
-      r.bilingualService?'Yes':'No',
-      r.lgbtqSupport?'Yes':'No',
-      r.harmReduction?'Yes':'No',
-      `"${(r.normalWaitTime??'').replace(/"/g,'""')}"`,
-      r.websiteAddress??'',
+      r.bilingualService?'Yes':'No', r.lgbtqSupport?'Yes':'No', r.harmReduction?'Yes':'No',
+      `"${(r.normalWaitTime??'').replace(/"/g,'""')}"`, r.websiteAddress??'',
     ]);
     const csv = [hdrs.join(","), ...rows.map(r => r.join(","))].join("\n");
     const a = Object.assign(document.createElement("a"),{href:URL.createObjectURL(new Blob([csv],{type:"text/csv"})),download:"ontario_mental_health_services.csv"});
     a.click();
   };
 
-  const PIE_TOOLTIP = {
-    fontSize:12, border:"1px solid var(--color-border)",
-    borderRadius:4, fontFamily:"var(--font-sans)",
-  };
+  const PIE_TOOLTIP = { fontSize:12, border:"1px solid var(--color-border)", borderRadius:4, fontFamily:"var(--font-sans)" };
+
+  const genTotal = byGen.reduce((s:number,r:{count:number})=>s+r.count, 0);
+  const lanTotal = byLan.reduce((s:number,r:{count:number})=>s+r.count, 0);
+
+  // Active filter pills data
+  const pills: { label:string; remove:()=>void }[] = [
+    ...(filters.county       ? [{ label:`County: ${filters.county}`,     remove:()=>set("county",undefined)       }] : []),
+    ...(filters.taxonomyTerm ? [{ label:`Category: ${filters.taxonomyTerm}`, remove:()=>set("taxonomyTerm",undefined) }] : []),
+    ...(filters.ageGroup     ? [{ label:`Age: ${filters.ageGroup}`,      remove:()=>set("ageGroup",undefined)     }] : []),
+    ...(filters.gender       ? [{ label:`Gender: ${filters.gender}`,     remove:()=>set("gender",undefined)       }] : []),
+    ...(filters.bilingual==="true"     ? [{ label:"Bilingual",     remove:()=>set("bilingual",undefined)     }] : []),
+    ...(filters.lgbtq==="true"         ? [{ label:"LGBTQ+",         remove:()=>set("lgbtq",undefined)         }] : []),
+    ...(filters.harmReduction==="true" ? [{ label:"Harm Reduction", remove:()=>set("harmReduction",undefined) }] : []),
+  ];
 
   return (
     <div style={{ minHeight:"100vh", background:"var(--color-bg)", fontFamily:"var(--font-sans)" }}>
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <header style={{
-        background:"var(--color-surface)",
-        borderBottom:"1px solid var(--color-border)",
-        padding:"0 var(--space-8)",
-        height:54,
-        position:"sticky", top:0, zIndex:10,
-        display:"flex", alignItems:"center",
+        background:"var(--color-surface)", borderBottom:"1px solid var(--color-border)",
+        padding:"0 var(--space-8)", height:54,
+        position:"sticky", top:0, zIndex:10, display:"flex", alignItems:"center",
       }}>
         <div style={{ maxWidth:1400, width:"100%", margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-
           <button onClick={() => navigate("/")} style={{ display:"flex", alignItems:"center", gap:12, background:"none", border:"none", cursor:"pointer", padding:0 }}>
             <div style={{ width:30, height:30, borderRadius:4, background:"var(--color-accent)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
@@ -249,10 +324,11 @@ export default function Dashboard() {
           <nav style={{ display:"flex", gap:28, alignItems:"center" }}>
             {(["charts","report"] as const).map(t => (
               <button key={t} onClick={() => setTab(t)} style={{
-                background:"none", border:"none", borderBottom:`2px solid ${tab===t ? "var(--color-accent)" : "transparent"}`,
+                background:"none", border:"none",
+                borderBottom:`2px solid ${tab===t ? "var(--color-accent)" : "transparent"}`,
                 padding:"4px 0", fontSize:13, fontWeight:tab===t ? 600 : 400,
                 fontFamily:"var(--font-sans)",
-                color: tab===t ? "var(--color-accent)" : "var(--color-text-secondary)",
+                color:tab===t ? "var(--color-accent)" : "var(--color-text-secondary)",
                 cursor:"pointer", transition:"all var(--duration-fast) var(--ease-out)",
                 letterSpacing:"0.01em",
               }}>
@@ -264,9 +340,8 @@ export default function Dashboard() {
       </header>
 
       {/* ── Filter bar ──────────────────────────────────────────────────── */}
-      <div style={{ background:"var(--color-surface)", borderBottom:"1px solid var(--color-border-subtle)", padding:"9px var(--space-8)" }}>
-        <div style={{ maxWidth:1400, margin:"0 auto", display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-
+      <div style={{ background:"var(--color-surface)", borderBottom:"1px solid var(--color-border-subtle)" }}>
+        <div style={{ maxWidth:1400, margin:"0 auto", padding:"9px var(--space-8)", display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
           <Sel value={filters.county??""} onChange={v=>set("county",v)}
             options={counties as string[]} placeholder="All Counties" width={148} />
           <Sel value={filters.taxonomyTerm??""} onChange={v=>set("taxonomyTerm",v)}
@@ -283,15 +358,21 @@ export default function Dashboard() {
           <Toggle label="Harm Reduction" active={filters.harmReduction==="true"} onChange={v=>set("harmReduction",v?"true":undefined)} />
 
           {activeCount > 0 && (
-            <button onClick={clear} style={{
-              fontSize:11, color:"var(--color-text-muted)", fontFamily:"var(--font-sans)",
-              background:"none", border:"none", cursor:"pointer",
-              textDecoration:"underline", padding:"0 4px", marginLeft:2,
-            }}>
-              Clear ({activeCount})
+            <button onClick={clear} style={{ fontSize:11, color:"var(--color-text-muted)", fontFamily:"var(--font-sans)", background:"none", border:"none", cursor:"pointer", textDecoration:"underline", padding:"0 4px", marginLeft:2 }}>
+              Clear all
             </button>
           )}
         </div>
+
+        {/* Active filter pills */}
+        {pills.length > 0 && (
+          <div style={{ maxWidth:1400, margin:"0 auto", padding:"0 var(--space-8) 8px", display:"flex", gap:6, flexWrap:"wrap", alignItems:"center" }}>
+            <span style={{ fontSize:10, fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase", color:"var(--color-text-muted)", fontFamily:"var(--font-sans)", marginRight:2 }}>
+              Filters:
+            </span>
+            {pills.map(p => <FilterPill key={p.label} label={p.label} onRemove={p.remove} />)}
+          </div>
+        )}
       </div>
 
       {/* ── Main ────────────────────────────────────────────────────────── */}
@@ -304,10 +385,10 @@ export default function Dashboard() {
               [0,1,2,3,4].map(i => <KpiSkeleton key={i} />)
             ) : (
               <>
-                <KpiCard label="Total Services"   value={kpis?.totalServices}         sub="Matching current filters"   delay={0}   />
-                <KpiCard label="Counties"         value={kpis?.totalCounties}         sub="Geographic regions covered" delay={50}  />
-                <KpiCard label="Bilingual"        value={kpis?.bilingualServices}     sub="EN/FR service delivery"     delay={100} />
-                <KpiCard label="LGBTQ+ Affirming" value={kpis?.lgbtqServices}         sub="Inclusive support services" delay={150} />
+                <KpiCard label="Total Services"   value={kpis?.totalServices}         sub="Matching current filters"    delay={0}   />
+                <KpiCard label="Counties"         value={kpis?.totalCounties}         sub="Geographic regions covered"  delay={50}  />
+                <KpiCard label="Bilingual"        value={kpis?.bilingualServices}     sub="EN/FR service delivery"      delay={100} />
+                <KpiCard label="LGBTQ+ Affirming" value={kpis?.lgbtqServices}         sub="Inclusive support services"  delay={150} />
                 <KpiCard label="Harm Reduction"   value={kpis?.harmReductionServices} sub="Explicitly flagged in dataset" delay={200} />
               </>
             )}
@@ -323,17 +404,20 @@ export default function Dashboard() {
 
               <div className="card animate-in" style={{ animationDelay:"150ms" }}>
                 <SectionHeader title="Services by Category" note="Top 12 service types grouped by taxonomy category" />
-                {catL ? <ChartSkeleton height={340} /> : (
+                {catL ? <ChartSkeleton height={340} /> : byCat.length === 0 ? <EmptyChart height={340} /> : (
                   <ResponsiveContainer width="100%" height={340}>
-                    <BarChart data={byCat} layout="vertical" margin={{ left:4, right:24, top:4, bottom:2 }}>
+                    <BarChart data={byCat} layout="vertical" margin={{ left:4, right:52, top:4, bottom:2 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} horizontal={false} />
                       <XAxis type="number" tick={{ fontSize:11, fill:TICK_COLOR, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false} />
-                      <YAxis type="category" dataKey="category" width={190}
+                      <YAxis type="category" dataKey="category" width={210}
                         tick={{ fontSize:10, fill:TICK_DARK, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false}
-                        tickFormatter={(v:string) => v.length>32 ? v.slice(0,30)+"…" : v} />
+                        tickFormatter={(v:string) => v.length>34 ? v.slice(0,32)+"…" : v} />
                       <Tooltip content={<TTip />} cursor={{ fill:CURSOR_FILL }} />
                       <Bar dataKey="count" radius={[0,3,3,0]} maxBarSize={18}>
                         {byCat.map((_:unknown,i:number) => <Cell key={i} fill={CHART_WARM[i%CHART_WARM.length]} />)}
+                        <LabelList dataKey="count" position="right"
+                          style={{ fontSize:10, fill:TICK_COLOR, fontFamily:"var(--font-sans)" }}
+                          formatter={(v:number) => v.toLocaleString()} />
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
@@ -342,9 +426,9 @@ export default function Dashboard() {
 
               <div className="card animate-in" style={{ animationDelay:"200ms" }}>
                 <SectionHeader title="Services by County" note="Top 20 Ontario counties by total service volume" />
-                {ctyL ? <ChartSkeleton height={340} /> : (
+                {ctyL ? <ChartSkeleton height={340} /> : byCty.length === 0 ? <EmptyChart height={340} /> : (
                   <ResponsiveContainer width="100%" height={340}>
-                    <BarChart data={byCty} layout="vertical" margin={{ left:4, right:24, top:6, bottom:2 }}>
+                    <BarChart data={byCty} layout="vertical" margin={{ left:4, right:52, top:6, bottom:2 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} horizontal={false} />
                       <XAxis type="number" tick={{ fontSize:11, fill:TICK_COLOR, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false} />
                       <YAxis type="category" dataKey="county" width={100}
@@ -352,6 +436,9 @@ export default function Dashboard() {
                       <Tooltip content={<TTip />} cursor={{ fill:CURSOR_FILL }} />
                       <Bar dataKey="count" radius={[0,3,3,0]} maxBarSize={14}>
                         {byCty.map((_:unknown,i:number) => <Cell key={i} fill={CHART_WARM[i%CHART_WARM.length]} />)}
+                        <LabelList dataKey="count" position="right"
+                          style={{ fontSize:10, fill:TICK_COLOR, fontFamily:"var(--font-sans)" }}
+                          formatter={(v:number) => v.toLocaleString()} />
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
@@ -364,15 +451,18 @@ export default function Dashboard() {
 
               <div className="card animate-in" style={{ animationDelay:"250ms" }}>
                 <SectionHeader title="Age Eligibility" note="Services by declared age group" />
-                {ageL ? <ChartSkeleton height={220} /> : (
-                  <ResponsiveContainer width="100%" height={220}>
+                {ageL ? <ChartSkeleton height={260} /> : byAge.length === 0 ? <EmptyChart height={260} /> : (
+                  <ResponsiveContainer width="100%" height={260}>
                     <BarChart data={byAge} margin={{ left:0, right:12, top:4, bottom:52 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
-                      <XAxis dataKey="ageGroup" tick={{ fontSize:10, fill:TICK_DARK, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false}
-                        angle={-30} textAnchor="end" interval={0} />
+                      <XAxis dataKey="ageGroup" tick={{ fontSize:10, fill:TICK_DARK, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false} angle={-30} textAnchor="end" interval={0} />
                       <YAxis tick={{ fontSize:11, fill:TICK_COLOR, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false} width={34} />
                       <Tooltip content={<TTip />} cursor={{ fill:CURSOR_FILL }} />
-                      <Bar dataKey="count" radius={[3,3,0,0]} fill="#78532a" maxBarSize={40} />
+                      <Bar dataKey="count" radius={[3,3,0,0]} fill="#78532a" maxBarSize={40}>
+                        <LabelList dataKey="count" position="top"
+                          style={{ fontSize:10, fill:TICK_COLOR, fontFamily:"var(--font-sans)" }}
+                          formatter={(v:number) => v.toLocaleString()} />
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -381,18 +471,20 @@ export default function Dashboard() {
               <div className="card animate-in" style={{ animationDelay:"300ms" }}>
                 <SectionHeader title="Gender Eligibility" note="Services by declared gender eligibility" />
                 {genL ? (
-                  <div style={{ height:220, display:"flex", alignItems:"center", justifyContent:"center" }}>
-                    <div className="skeleton" style={{ width:130, height:130, borderRadius:"50%" }} />
+                  <div style={{ height:260, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    <div className="skeleton" style={{ width:140, height:140, borderRadius:"50%" }} />
                   </div>
-                ) : (
-                  <ResponsiveContainer width="100%" height={220}>
+                ) : byGen.length === 0 ? <EmptyChart height={260} /> : (
+                  <ResponsiveContainer width="100%" height={260}>
                     <PieChart>
                       <Pie data={byGen} dataKey="count" nameKey="gender"
-                        cx="50%" cy="42%" outerRadius={74} innerRadius={38} paddingAngle={3}>
+                        cx="50%" cy="45%" outerRadius={84} innerRadius={44} paddingAngle={3}>
                         {byGen.map((_:unknown,i:number) => <Cell key={i} fill={PIE_WARM[i%PIE_WARM.length]} />)}
                       </Pie>
                       <Legend formatter={(v:string) => <span style={{ fontSize:11, color:TICK_DARK, fontFamily:"var(--font-sans)" }}>{v}</span>} iconSize={7} />
-                      <Tooltip formatter={(v:number) => [v.toLocaleString(),"Services"]} contentStyle={PIE_TOOLTIP} />
+                      <Tooltip
+                        formatter={(v:number) => [`${v.toLocaleString()} (${genTotal>0?Math.round(v/genTotal*100):0}%)`, "Services"]}
+                        contentStyle={PIE_TOOLTIP} />
                     </PieChart>
                   </ResponsiveContainer>
                 )}
@@ -401,18 +493,20 @@ export default function Dashboard() {
               <div className="card animate-in" style={{ animationDelay:"350ms" }}>
                 <SectionHeader title="Language Availability" note="Bilingual (EN/FR) vs. single-language delivery" />
                 {lanL ? (
-                  <div style={{ height:220, display:"flex", alignItems:"center", justifyContent:"center" }}>
-                    <div className="skeleton" style={{ width:130, height:130, borderRadius:"50%" }} />
+                  <div style={{ height:260, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    <div className="skeleton" style={{ width:140, height:140, borderRadius:"50%" }} />
                   </div>
-                ) : (
-                  <ResponsiveContainer width="100%" height={220}>
+                ) : byLan.length === 0 ? <EmptyChart height={260} /> : (
+                  <ResponsiveContainer width="100%" height={260}>
                     <PieChart>
                       <Pie data={byLan} dataKey="count" nameKey="language"
-                        cx="50%" cy="42%" outerRadius={74} innerRadius={38} paddingAngle={3}>
+                        cx="50%" cy="45%" outerRadius={84} innerRadius={44} paddingAngle={3}>
                         {byLan.map((_:unknown,i:number) => <Cell key={i} fill={PIE_WARM[i%PIE_WARM.length]} />)}
                       </Pie>
                       <Legend formatter={(v:string) => <span style={{ fontSize:11, color:TICK_DARK, fontFamily:"var(--font-sans)" }}>{v}</span>} iconSize={7} />
-                      <Tooltip formatter={(v:number) => [v.toLocaleString(),"Services"]} contentStyle={PIE_TOOLTIP} />
+                      <Tooltip
+                        formatter={(v:number) => [`${v.toLocaleString()} (${lanTotal>0?Math.round(v/lanTotal*100):0}%)`, "Services"]}
+                        contentStyle={PIE_TOOLTIP} />
                     </PieChart>
                   </ResponsiveContainer>
                 )}
@@ -430,7 +524,7 @@ export default function Dashboard() {
                   Service Records
                 </h2>
                 <p style={{ fontSize:11, color:"var(--color-text-muted)", margin:"3px 0 0", fontFamily:"var(--font-sans)" }}>
-                  {rptL ? "Loading…" : `${rpt.length.toLocaleString()} records${rpt.length===500?" · showing first 500":""}`}
+                  {rptL ? "Loading…" : sorted.length === 0 ? "No records match the current filters" : `Showing ${((page-1)*PAGE_SIZE)+1}–${Math.min(page*PAGE_SIZE,sorted.length)} of ${sorted.length.toLocaleString()} records`}
                 </p>
               </div>
               <div style={{ display:"flex", gap:8, alignItems:"center" }}>
@@ -459,15 +553,23 @@ export default function Dashboard() {
                   <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12, fontFamily:"var(--font-sans)" }}>
                     <thead>
                       <tr style={{ background:"var(--color-bg)", borderBottom:"2px solid var(--color-border)" }}>
-                        {["Service Name","Category","City","County","Age Group","Gender","Languages","Bilingual","LGBTQ+","Harm Red.","Wait Time"].map(h => (
-                          <th key={h} style={{ padding:"9px 12px", textAlign:"left", fontWeight:600, color:"var(--color-text-muted)", letterSpacing:"0.06em", textTransform:"uppercase", fontSize:10, whiteSpace:"nowrap", fontFamily:"var(--font-sans)" }}>{h}</th>
-                        ))}
+                        <SortTh label="Service Name" sortK="publicName"          current={sortKey} dir={sortDir} onSort={handleSort} />
+                        <SortTh label="Category"     sortK="category"            current={sortKey} dir={sortDir} onSort={handleSort} />
+                        <SortTh label="City"         sortK="physicalCity"        current={sortKey} dir={sortDir} onSort={handleSort} />
+                        <SortTh label="County"       sortK="physicalCounty"      current={sortKey} dir={sortDir} onSort={handleSort} />
+                        <SortTh label="Age Group"    sortK="eligibilityAgeGroup" current={sortKey} dir={sortDir} onSort={handleSort} />
+                        <SortTh label="Gender"       sortK="eligibilityByGender" current={sortKey} dir={sortDir} onSort={handleSort} />
+                        <th style={{ padding:"9px 12px", textAlign:"left", fontWeight:600, color:"var(--color-text-muted)", letterSpacing:"0.06em", textTransform:"uppercase", fontSize:10, whiteSpace:"nowrap" }}>Languages</th>
+                        <th style={{ padding:"9px 12px", textAlign:"left", fontWeight:600, color:"var(--color-text-muted)", letterSpacing:"0.06em", textTransform:"uppercase", fontSize:10, whiteSpace:"nowrap" }}>Bilingual</th>
+                        <th style={{ padding:"9px 12px", textAlign:"left", fontWeight:600, color:"var(--color-text-muted)", letterSpacing:"0.06em", textTransform:"uppercase", fontSize:10, whiteSpace:"nowrap" }}>LGBTQ+</th>
+                        <th style={{ padding:"9px 12px", textAlign:"left", fontWeight:600, color:"var(--color-text-muted)", letterSpacing:"0.06em", textTransform:"uppercase", fontSize:10, whiteSpace:"nowrap" }}>Harm Red.</th>
+                        <SortTh label="Wait Time" sortK="normalWaitTime" current={sortKey} dir={sortDir} onSort={handleSort} />
                       </tr>
                     </thead>
                     <tbody>
-                      {rpt.length===0 ? (
+                      {pagedRows.length === 0 ? (
                         <tr><td colSpan={11} style={{ padding:"var(--space-8)", textAlign:"center", color:"var(--color-text-muted)", fontSize:13 }}>No records match the current filters.</td></tr>
-                      ) : rpt.map((row, i) => (
+                      ) : pagedRows.map((row, i) => (
                         <tr key={row.id}
                           style={{ borderBottom:`1px solid var(--color-border-subtle)`, background:i%2===0?"var(--color-surface)":"var(--color-bg)", transition:`background var(--duration-fast)` }}
                           onMouseEnter={e => (e.currentTarget.style.background="var(--color-accent-light)")}
@@ -503,6 +605,25 @@ export default function Dashboard() {
                       ))}
                     </tbody>
                   </table>
+
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 16px", borderTop:"1px solid var(--color-border-subtle)", background:"var(--color-bg)" }}>
+                      <span style={{ fontSize:11, color:"var(--color-text-muted)", fontFamily:"var(--font-sans)" }}>
+                        Page {page} of {totalPages}
+                      </span>
+                      <div style={{ display:"flex", gap:6 }}>
+                        <button onClick={() => setPage(p=>Math.max(1,p-1))} disabled={page===1}
+                          style={{ padding:"4px 12px", fontSize:11, fontFamily:"var(--font-sans)", border:"1px solid var(--color-border)", borderRadius:4, background:"var(--color-surface)", color:"var(--color-text-secondary)", cursor:page===1?"not-allowed":"pointer", opacity:page===1?0.4:1 }}>
+                          ← Prev
+                        </button>
+                        <button onClick={() => setPage(p=>Math.min(totalPages,p+1))} disabled={page===totalPages}
+                          style={{ padding:"4px 12px", fontSize:11, fontFamily:"var(--font-sans)", border:"1px solid var(--color-border)", borderRadius:4, background:"var(--color-surface)", color:"var(--color-text-secondary)", cursor:page===totalPages?"not-allowed":"pointer", opacity:page===totalPages?0.4:1 }}>
+                          Next →
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
