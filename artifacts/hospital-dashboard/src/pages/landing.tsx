@@ -115,6 +115,13 @@ export default function Landing() {
           style={{ color:"var(--color-accent)", textDecoration:"none", fontWeight:500, fontSize:11 }}>
           ↓ Download source dataset (.xlsx)
         </a>
+        <span style={{ display:"flex", gap:12, alignItems:"center", marginTop:2 }}>
+          <span>Built by Nebula Kamrul</span>
+          <span style={{ color:"var(--color-border-subtle)" }}>·</span>
+          <a href="https://linkedin.com/in/nebulakamrul" target="_blank" rel="noopener noreferrer" style={{ color:"var(--color-accent)", textDecoration:"none", fontWeight:500 }}>LinkedIn</a>
+          <span style={{ color:"var(--color-border-subtle)" }}>·</span>
+          <a href="mailto:nebulakamrul@gmail.com" style={{ color:"var(--color-accent)", textDecoration:"none", fontWeight:500 }}>nebulakamrul@gmail.com</a>
+        </span>
       </footer>
 
     </div>

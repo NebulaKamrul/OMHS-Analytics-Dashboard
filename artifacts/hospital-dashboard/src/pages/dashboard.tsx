@@ -797,8 +797,15 @@ export default function Dashboard() {
         )}
       </main>
 
-      <footer style={{ borderTop:"1px solid var(--color-border-subtle)", padding:"var(--space-4) var(--space-8)", textAlign:"center", fontSize:11, color:"var(--color-text-muted)", fontFamily:"var(--font-sans)" }}>
-        Data source: Kids Help Phone: Ontario Ministry of Health Export 2019 · For internal analytics use only
+      <footer style={{ borderTop:"1px solid var(--color-border-subtle)", padding:"var(--space-4) var(--space-8)", textAlign:"center", fontSize:11, color:"var(--color-text-muted)", fontFamily:"var(--font-sans)", display:"flex", flexDirection:"column", gap:6, alignItems:"center" }}>
+        <span>Data source: Kids Help Phone · Ontario Ministry of Health Export 2019 · For internal analytics use only</span>
+        <span style={{ display:"flex", gap:12, alignItems:"center" }}>
+          <span>Built by Nebula Kamrul</span>
+          <span style={{ color:"var(--color-border-subtle)" }}>·</span>
+          <a href="https://linkedin.com/in/nebulakamrul" target="_blank" rel="noopener noreferrer" style={{ color:"var(--color-accent)", textDecoration:"none", fontWeight:500 }}>LinkedIn</a>
+          <span style={{ color:"var(--color-border-subtle)" }}>·</span>
+          <a href="mailto:nebulakamrul@gmail.com" style={{ color:"var(--color-accent)", textDecoration:"none", fontWeight:500 }}>nebulakamrul@gmail.com</a>
+        </span>
       </footer>
     </div>
   );
