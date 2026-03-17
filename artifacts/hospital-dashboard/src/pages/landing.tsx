@@ -6,7 +6,7 @@ const SERIF = "'Playfair Display', Georgia, serif";
 const STATS = [
   { value: "5,945", label: "Service listings" },
   { value: "50",    label: "Ontario counties" },
-  { value: "140+",  label: "Data fields" },
+  { value: "149",    label: "Data fields" },
   { value: "2019",  label: "MOH export year" },
 ];
 
