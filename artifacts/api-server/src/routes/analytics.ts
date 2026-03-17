@@ -319,8 +319,7 @@ router.get("/analytics/services-report", async (req, res, next) => {
     const rows = await baseQuery
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .groupBy(servicesTable.id)
-      .orderBy(servicesTable.publicName)
-      .limit(500);
+      .orderBy(servicesTable.publicName);
 
     res.json(rows);
   } catch (err) {
