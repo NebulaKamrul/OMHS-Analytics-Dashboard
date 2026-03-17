@@ -60,7 +60,7 @@ export default function Landing() {
           </div>
 
           {/* Stats row */}
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:"var(--space-4)", marginBottom:56 }}>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(130px,1fr))", gap:"var(--space-4)", marginBottom:56 }}>
             {STATS.map(({ value, label }) => (
               <div key={label} style={{ padding:"var(--space-5)", background:"var(--color-surface)", border:"1px solid var(--color-border)", borderRadius:6 }}>
                 <p style={{ fontSize:24, fontWeight:700, fontFamily:SERIF, color:"var(--color-text-primary)", margin:"0 0 4px", lineHeight:1 }}>
@@ -74,7 +74,7 @@ export default function Landing() {
           </div>
 
           {/* Features */}
-          <div style={{ borderTop:"1px solid var(--color-border-subtle)", paddingTop:40, display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:"var(--space-5)" }}>
+          <div style={{ borderTop:"1px solid var(--color-border-subtle)", paddingTop:40, display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(220px,1fr))", gap:"var(--space-5)" }}>
             {FEATURES.map(({ title, body }) => (
               <div key={title}>
                 <p style={{ fontSize:13, fontWeight:700, fontFamily:SERIF, color:"var(--color-text-primary)", margin:"0 0 8px" }}>

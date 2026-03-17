@@ -232,12 +232,14 @@ export default function Dashboard() {
 
   const { data: counties  = [] } = useGetFilterCounties();
   const { data: taxTerms  = [] } = useGetFilterTaxonomyTerms();
-  const { data: kpis,       isLoading: kpiL } = useGetAnalyticsKpis(filters);
-  const { data: byCat = [], isLoading: catL } = useGetServicesByCategory(filters);
-  const { data: byCty = [], isLoading: ctyL } = useGetServicesByCounty(filters);
-  const { data: byAge = [], isLoading: ageL } = useGetEligibilityByAge(filters);
-  const { data: byGen = [], isLoading: genL } = useGetEligibilityByGender(filters);
-  const { data: byLan = [], isLoading: lanL } = useGetLanguageDistribution(filters);
+  const { data: kpis,       isLoading: kpiL, isFetching: kpiF } = useGetAnalyticsKpis(filters);
+  const { data: byCat = [], isLoading: catL, isFetching: catF } = useGetServicesByCategory(filters);
+  const { data: byCty = [], isLoading: ctyL, isFetching: ctyF } = useGetServicesByCounty(filters);
+  const { data: byAge = [], isLoading: ageL, isFetching: ageF } = useGetEligibilityByAge(filters);
+  const { data: byGen = [], isLoading: genL, isFetching: genF } = useGetEligibilityByGender(filters);
+  const { data: byLan = [], isLoading: lanL, isFetching: lanF } = useGetLanguageDistribution(filters);
+
+  const isUpdating = (!kpiL && kpiF) || (!catL && catF) || (!ctyL && ctyF) || (!ageL && ageF) || (!genL && genF) || (!lanL && lanF);
   const { data: rpt   = [], isLoading: rptL } = useGetServicesReport(
     { ...filters, search: search || undefined },
     { query: { enabled: tab === "report" } }
@@ -362,6 +364,12 @@ export default function Dashboard() {
               Clear all
             </button>
           )}
+          {isUpdating && (
+            <span style={{ marginLeft:"auto", fontSize:11, color:"var(--color-text-muted)", fontFamily:"var(--font-sans)", display:"flex", alignItems:"center", gap:5 }}>
+              <span style={{ display:"inline-block", width:7, height:7, borderRadius:"50%", background:"var(--color-accent-mid)", animation:"skeleton-pulse 1.2s ease-in-out infinite" }} />
+              Updating…
+            </span>
+          )}
         </div>
 
         {/* Active filter pills */}
@@ -402,8 +410,8 @@ export default function Dashboard() {
             {/* Row 1: Category + County */}
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"var(--space-5)" }}>
 
-              <div className="card animate-in" style={{ animationDelay:"150ms" }}>
-                <SectionHeader title="Services by Category" note="Top 12 service types grouped by taxonomy category" />
+              <div className="card animate-in" style={{ animationDelay:"150ms", opacity: catF && !catL ? 0.65 : 1, transition:"opacity 200ms" }}>
+                <SectionHeader title="Services by Category" note="Top 12 service types · click a bar to filter by category" />
                 {catL ? <ChartSkeleton height={340} /> : byCat.length === 0 ? <EmptyChart height={340} /> : (
                   <ResponsiveContainer width="100%" height={340}>
                     <BarChart data={byCat} layout="vertical" margin={{ left:4, right:52, top:4, bottom:2 }}>
@@ -413,8 +421,12 @@ export default function Dashboard() {
                         tick={{ fontSize:10, fill:TICK_DARK, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false}
                         tickFormatter={(v:string) => v.length>34 ? v.slice(0,32)+"…" : v} />
                       <Tooltip content={<TTip />} cursor={{ fill:CURSOR_FILL }} />
-                      <Bar dataKey="count" radius={[0,3,3,0]} maxBarSize={18}>
-                        {byCat.map((_:unknown,i:number) => <Cell key={i} fill={CHART_WARM[i%CHART_WARM.length]} />)}
+                      <Bar dataKey="count" radius={[0,3,3,0]} maxBarSize={18} style={{ cursor:"pointer" }}
+                        onClick={(data: {category:string}) => set("taxonomyTerm", filters.taxonomyTerm===data.category ? undefined : data.category)}>
+                        {byCat.map((entry:{category:string},i:number) => (
+                          <Cell key={i} fill={CHART_WARM[i%CHART_WARM.length]}
+                            opacity={filters.taxonomyTerm && filters.taxonomyTerm!==entry.category ? 0.35 : 1} />
+                        ))}
                         <LabelList dataKey="count" position="right"
                           style={{ fontSize:10, fill:TICK_COLOR, fontFamily:"var(--font-sans)" }}
                           formatter={(v:number) => v.toLocaleString()} />
@@ -424,8 +436,8 @@ export default function Dashboard() {
                 )}
               </div>
 
-              <div className="card animate-in" style={{ animationDelay:"200ms" }}>
-                <SectionHeader title="Services by County" note="Top 20 Ontario counties by total service volume" />
+              <div className="card animate-in" style={{ animationDelay:"200ms", opacity: ctyF && !ctyL ? 0.65 : 1, transition:"opacity 200ms" }}>
+                <SectionHeader title="Services by County" note="Top 20 Ontario counties · click a bar to filter by county" />
                 {ctyL ? <ChartSkeleton height={340} /> : byCty.length === 0 ? <EmptyChart height={340} /> : (
                   <ResponsiveContainer width="100%" height={340}>
                     <BarChart data={byCty} layout="vertical" margin={{ left:4, right:52, top:6, bottom:2 }}>
@@ -434,8 +446,12 @@ export default function Dashboard() {
                       <YAxis type="category" dataKey="county" width={100}
                         tick={{ fontSize:11, fill:TICK_DARK, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false} />
                       <Tooltip content={<TTip />} cursor={{ fill:CURSOR_FILL }} />
-                      <Bar dataKey="count" radius={[0,3,3,0]} maxBarSize={14}>
-                        {byCty.map((_:unknown,i:number) => <Cell key={i} fill={CHART_WARM[i%CHART_WARM.length]} />)}
+                      <Bar dataKey="count" radius={[0,3,3,0]} maxBarSize={14} style={{ cursor:"pointer" }}
+                        onClick={(data: {county:string}) => set("county", filters.county===data.county ? undefined : data.county)}>
+                        {byCty.map((entry:{county:string},i:number) => (
+                          <Cell key={i} fill={CHART_WARM[i%CHART_WARM.length]}
+                            opacity={filters.county && filters.county!==entry.county ? 0.35 : 1} />
+                        ))}
                         <LabelList dataKey="count" position="right"
                           style={{ fontSize:10, fill:TICK_COLOR, fontFamily:"var(--font-sans)" }}
                           formatter={(v:number) => v.toLocaleString()} />
@@ -528,11 +544,19 @@ export default function Dashboard() {
                 </p>
               </div>
               <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-                <input
-                  type="text" value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="Search service name…"
-                  style={{ padding:"6px 10px", fontSize:12, fontFamily:"var(--font-sans)", border:"1px solid var(--color-border)", borderRadius:4, outline:"none", width:220, background:"var(--color-surface)", color:"var(--color-text-primary)" }} />
+                <div style={{ position:"relative", display:"inline-flex", alignItems:"center" }}>
+                  <input
+                    type="text" value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Search service name…"
+                    style={{ padding:"6px 28px 6px 10px", fontSize:12, fontFamily:"var(--font-sans)", border:"1px solid var(--color-border)", borderRadius:4, outline:"none", width:220, background:"var(--color-surface)", color:"var(--color-text-primary)" }} />
+                  {search && (
+                    <button onClick={() => setSearch("")}
+                      style={{ position:"absolute", right:7, background:"none", border:"none", cursor:"pointer", padding:0, color:"var(--color-text-muted)", fontSize:15, lineHeight:1, display:"flex", alignItems:"center" }}>
+                      ×
+                    </button>
+                  )}
+                </div>
                 <button
                   onClick={exportCsv} disabled={!rpt.length}
                   style={{ padding:"6px 18px", fontSize:12, fontWeight:500, fontFamily:"var(--font-sans)", border:"none", borderRadius:4, background:"var(--color-accent)", color:"#fff", cursor:rpt.length?"pointer":"not-allowed", opacity:rpt.length?1:0.5 }}>
