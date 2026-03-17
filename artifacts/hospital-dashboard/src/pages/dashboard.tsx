@@ -10,6 +10,7 @@
 
 import { useState, useEffect, Fragment } from "react";
 import { useLocation } from "wouter";
+import { useTheme } from "@/lib/useTheme";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
@@ -234,6 +235,7 @@ function buildContext(filters: Filters, total?: number): string {
 
 export default function Dashboard() {
   const [, navigate] = useLocation();
+  const { isDark, toggle: toggleTheme } = useTheme();
   const [filters, setFilters]   = useState<Filters>({});
   const [search, setSearch]     = useState("");
   const [tab, setTab]           = useState<"charts"|"report">("charts");
@@ -351,7 +353,7 @@ export default function Dashboard() {
         position:"sticky", top:0, zIndex:10, display:"flex", alignItems:"center",
       }}>
         <div style={{ maxWidth:1400, width:"100%", margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-          <button onClick={() => navigate("/")} style={{ display:"flex", alignItems:"center", gap:12, background:"none", border:"none", cursor:"pointer", padding:0 }}>
+          <a href={import.meta.env.BASE_URL} style={{ display:"flex", alignItems:"center", gap:12, textDecoration:"none" }}>
             <div style={{ width:30, height:30, borderRadius:4, background:"var(--color-accent)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
                 <rect x="1" y="7" width="3" height="8" fill="white" rx="0.5"/>
@@ -367,9 +369,9 @@ export default function Dashboard() {
                 KHP 2019 MOH Export · {kpis?.totalServices?.toLocaleString() ?? "5,945"} records
               </p>
             </div>
-          </button>
+          </a>
 
-          <nav style={{ display:"flex", gap:28, alignItems:"center" }}>
+          <nav style={{ display:"flex", gap:20, alignItems:"center" }}>
             {(["charts","report"] as const).map(t => (
               <button key={t} onClick={() => setTab(t)} style={{
                 background:"none", border:"none",
@@ -383,6 +385,10 @@ export default function Dashboard() {
                 {t==="charts" ? "Overview" : "Service Report"}
               </button>
             ))}
+            <button onClick={toggleTheme} title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+              style={{ padding:"5px 8px", background:"none", border:"1px solid var(--color-border)", borderRadius:5, cursor:"pointer", color:"var(--color-text-secondary)", fontSize:13, lineHeight:1, display:"flex", alignItems:"center" }}>
+              {isDark ? "☀" : "☾"}
+            </button>
           </nav>
         </div>
       </header>

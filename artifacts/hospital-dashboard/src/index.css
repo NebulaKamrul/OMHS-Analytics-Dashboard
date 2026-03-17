@@ -108,6 +108,31 @@ body {
   animation: slide-up var(--duration-base) var(--ease-out) both;
 }
 
+/* ── Dark mode ─────────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  --color-bg:             #1a1612;
+  --color-surface:        #231e17;
+  --color-border:         #3d3429;
+  --color-border-subtle:  #2d261d;
+  --color-text-primary:   #f0e8dc;
+  --color-text-secondary: #b09c8a;
+  --color-text-muted:     #786c5d;
+  --color-accent:         #c49052;
+  --color-accent-mid:     #d4a866;
+  --color-accent-light:   #2a1c11;
+  color-scheme: dark;
+}
+
+[data-theme="dark"] .card,
+[data-theme="dark"] .card-kpi {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+[data-theme="dark"] .skeleton {
+  background: var(--color-border);
+}
+
 /* Recharts SVG overflow fix */
 .recharts-wrapper,
 .recharts-wrapper svg {
