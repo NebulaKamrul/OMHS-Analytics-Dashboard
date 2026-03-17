@@ -133,8 +133,3 @@ body {
   background: var(--color-border);
 }
 
-/* Recharts SVG overflow fix */
-.recharts-wrapper,
-.recharts-wrapper svg {
-  overflow: visible !important;
-}

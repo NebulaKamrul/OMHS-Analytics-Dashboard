@@ -414,8 +414,8 @@ export default function Dashboard() {
               </button>
             ))}
             <button onClick={toggleTheme} title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-              style={{ position:"relative", width:44, height:24, borderRadius:12, background:isDark?"var(--color-accent)":"var(--color-border)", border:"none", cursor:"pointer", padding:0, flexShrink:0, transition:"background 200ms" }}>
-              <span style={{ position:"absolute", top:3, left:isDark?23:3, width:18, height:18, borderRadius:"50%", background:"var(--color-surface)", transition:"left 200ms", display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, lineHeight:1, pointerEvents:"none" }}>
+              style={{ position:"relative", width:52, height:28, borderRadius:14, background:isDark?"var(--color-accent)":"var(--color-border)", border:"none", cursor:"pointer", padding:0, flexShrink:0, transition:"background 200ms" }}>
+              <span style={{ position:"absolute", top:3, left:isDark?27:3, width:22, height:22, borderRadius:"50%", background:"var(--color-surface)", transition:"left 200ms", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, lineHeight:1, pointerEvents:"none" }}>
                 {isDark ? "☀" : "☾"}
               </span>
             </button>
@@ -502,15 +502,15 @@ export default function Dashboard() {
 
               <div className="card animate-in" style={{ animationDelay:"150ms", opacity: catF && !catL ? 0.65 : 1, transition:"opacity 200ms" }}>
                 <SectionHeader title="Services by Category" note="Top 12 service types · click a bar to filter by category" />
-                {catL ? <ChartSkeleton height={340} /> : byCat.length === 0 ? <EmptyChart height={340} /> : (
-                  <ResponsiveContainer width="100%" height={340}>
+                {catL ? <ChartSkeleton height={460} /> : byCat.length === 0 ? <EmptyChart height={460} /> : (
+                  <ResponsiveContainer width="100%" height={460}>
                     <BarChart data={byCat} layout="vertical" margin={{ left:4, right:52, top:4, bottom:2 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={gridColor} horizontal={false} />
                       <XAxis type="number" tick={{ fontSize:11, fill:tickColor, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false} />
                       <YAxis type="category" dataKey="category" width={230}
-                        tick={<CategoryTick fill={tickDark} />} axisLine={false} tickLine={false} />
+                        tick={<CategoryTick fill={tickDark} />} axisLine={false} tickLine={false} interval={0} />
                       <Tooltip content={<TTip />} cursor={{ fill:cursorFill }} />
-                      <Bar dataKey="count" radius={[0,3,3,0]} maxBarSize={18} style={{ cursor:"pointer" }}
+                      <Bar dataKey="count" radius={[0,3,3,0]} maxBarSize={20} minPointSize={3} style={{ cursor:"pointer" }}
                         isAnimationActive={false}
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         label={(p: any) => p.value == null ? null : (
@@ -532,13 +532,13 @@ export default function Dashboard() {
 
               <div className="card animate-in" style={{ animationDelay:"200ms", opacity: ctyF && !ctyL ? 0.65 : 1, transition:"opacity 200ms" }}>
                 <SectionHeader title="Services by County" note="Top 20 Ontario counties · click a bar to filter by county" />
-                {ctyL ? <ChartSkeleton height={340} /> : byCty.length === 0 ? <EmptyChart height={340} /> : (
-                  <ResponsiveContainer width="100%" height={340}>
+                {ctyL ? <ChartSkeleton height={460} /> : byCty.length === 0 ? <EmptyChart height={460} /> : (
+                  <ResponsiveContainer width="100%" height={460}>
                     <BarChart data={byCty} layout="vertical" margin={{ left:4, right:52, top:6, bottom:2 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={gridColor} horizontal={false} />
                       <XAxis type="number" tick={{ fontSize:11, fill:tickColor, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false} />
-                      <YAxis type="category" dataKey="county" width={108}
-                        tick={{ fontSize:11, fill:tickDark, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false} />
+                      <YAxis type="category" dataKey="county" width={136} interval={0}
+                        tick={{ fontSize:10, fill:tickDark, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false} />
                       <Tooltip content={<TTip />} cursor={{ fill:cursorFill }} />
                       <Bar dataKey="count" radius={[0,3,3,0]} maxBarSize={14} style={{ cursor:"pointer" }}
                         isAnimationActive={false}
@@ -567,11 +567,11 @@ export default function Dashboard() {
               <div className="card animate-in" style={{ animationDelay:"250ms" }}>
                 <SectionHeader title="Age Eligibility" note="Services by declared age group" />
                 {ageL ? <ChartSkeleton height={260} /> : byAge.length === 0 ? <EmptyChart height={260} /> : (
-                  <ResponsiveContainer width="100%" height={260}>
-                    <BarChart data={byAge} margin={{ left:0, right:12, top:4, bottom:52 }}>
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={byAge} margin={{ left:24, right:12, top:4, bottom:72 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
-                      <XAxis dataKey="ageGroup" tick={{ fontSize:10, fill:tickDark, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false} angle={-30} textAnchor="end" interval={0} />
-                      <YAxis tick={{ fontSize:11, fill:tickColor, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false} width={34} />
+                      <XAxis dataKey="ageGroup" tick={{ fontSize:10, fill:tickDark, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false} angle={-28} textAnchor="end" interval={0} />
+                      <YAxis tick={{ fontSize:11, fill:tickColor, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false} width={28} />
                       <Tooltip content={<TTip />} cursor={{ fill:cursorFill }} />
                       <Bar dataKey="count" radius={[3,3,0,0]} fill="#78532a" maxBarSize={40}
                         isAnimationActive={false}
@@ -597,7 +597,8 @@ export default function Dashboard() {
                   <ResponsiveContainer width="100%" height={260}>
                     <PieChart>
                       <Pie data={byGen} dataKey="count" nameKey="gender"
-                        cx="50%" cy="45%" outerRadius={84} innerRadius={44} paddingAngle={3}>
+                        cx="50%" cy="45%" outerRadius={84} innerRadius={44} paddingAngle={3}
+                        isAnimationActive={false}>
                         {byGen.map((_:unknown,i:number) => <Cell key={i} fill={PIE_WARM[i%PIE_WARM.length]} />)}
                       </Pie>
                       <Legend formatter={(v:string) => <span style={{ fontSize:11, color:tickDark, fontFamily:"var(--font-sans)" }}>{v}</span>} iconSize={7} />
@@ -619,7 +620,8 @@ export default function Dashboard() {
                   <ResponsiveContainer width="100%" height={260}>
                     <PieChart>
                       <Pie data={byLan} dataKey="count" nameKey="language"
-                        cx="50%" cy="45%" outerRadius={84} innerRadius={44} paddingAngle={3}>
+                        cx="50%" cy="45%" outerRadius={84} innerRadius={44} paddingAngle={3}
+                        isAnimationActive={false}>
                         {byLan.map((_:unknown,i:number) => <Cell key={i} fill={PIE_WARM[i%PIE_WARM.length]} />)}
                       </Pie>
                       <Legend formatter={(v:string) => <span style={{ fontSize:11, color:tickDark, fontFamily:"var(--font-sans)" }}>{v}</span>} iconSize={7} />

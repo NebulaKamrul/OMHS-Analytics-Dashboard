@@ -40,8 +40,8 @@ export default function Landing() {
           </span>
         </div>
         <button onClick={toggleTheme} title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-          style={{ position:"relative", width:44, height:24, borderRadius:12, background:isDark?"var(--color-accent)":"var(--color-border)", border:"none", cursor:"pointer", padding:0, flexShrink:0, transition:"background 200ms" }}>
-          <span style={{ position:"absolute", top:3, left:isDark?23:3, width:18, height:18, borderRadius:"50%", background:"var(--color-surface)", transition:"left 200ms", display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, lineHeight:1, pointerEvents:"none" }}>
+          style={{ position:"relative", width:52, height:28, borderRadius:14, background:isDark?"var(--color-accent)":"var(--color-border)", border:"none", cursor:"pointer", padding:0, flexShrink:0, transition:"background 200ms" }}>
+          <span style={{ position:"absolute", top:3, left:isDark?27:3, width:22, height:22, borderRadius:"50%", background:"var(--color-surface)", transition:"left 200ms", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, lineHeight:1, pointerEvents:"none" }}>
             {isDark ? "☀" : "☾"}
           </span>
         </button>
