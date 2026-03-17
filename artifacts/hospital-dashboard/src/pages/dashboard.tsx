@@ -8,11 +8,11 @@
  * Filters propagate to every query so all panels stay consistent.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { useLocation } from "wouter";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, PieChart, Pie, Cell, Legend, LabelList,
+  ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from "recharts";
 import {
   useGetAnalyticsKpis,
@@ -213,6 +213,23 @@ function SortTh({ label, sortK, current, dir, onSort }: {
   );
 }
 
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+function buildContext(filters: Filters, total?: number): string {
+  const subject = filters.taxonomyTerm ?? "All services";
+  const loc     = filters.county ? ` in ${filters.county}` : "";
+  const flags   = [
+    filters.ageGroup,
+    filters.gender,
+    filters.bilingual === "true"     && "Bilingual",
+    filters.lgbtq === "true"         && "LGBTQ+ affirming",
+    filters.harmReduction === "true" && "Harm reduction",
+  ].filter(Boolean) as string[];
+  const flagStr = flags.length ? ` · ${flags.join(", ")}` : "";
+  const countStr = total !== undefined ? ` · ${total.toLocaleString()} records` : "";
+  return `${subject}${loc}${flagStr}${countStr}`;
+}
+
 // ── Main component ───────────────────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -223,12 +240,13 @@ export default function Dashboard() {
   const [sortKey, setSortKey]   = useState("publicName");
   const [sortDir, setSortDir]   = useState<SortDir>("asc");
   const [page, setPage]         = useState(1);
+  const [expandedRow, setExpandedRow] = useState<string|null>(null);
 
   const set = (k: keyof Filters, v: string|undefined) =>
     setFilters(f => ({ ...f, [k]: v || undefined }));
 
   const activeCount = Object.values(filters).filter(Boolean).length;
-  const clear = () => { setFilters({}); setSearch(""); };
+  const clear = () => { setFilters({}); setSearch(""); window.history.replaceState(null,"",window.location.pathname); };
 
   const { data: counties  = [] } = useGetFilterCounties();
   const { data: taxTerms  = [] } = useGetFilterTaxonomyTerms();
@@ -244,6 +262,34 @@ export default function Dashboard() {
     { ...filters, search: search || undefined },
     { query: { enabled: tab === "report" } }
   );
+
+  // Initialize filters from URL on first load
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const init: Filters = {};
+    if (p.get("county"))    init.county        = p.get("county")!;
+    if (p.get("cat"))       init.taxonomyTerm  = p.get("cat")!;
+    if (p.get("age"))       init.ageGroup      = p.get("age")!;
+    if (p.get("gender"))    init.gender        = p.get("gender")!;
+    if (p.get("bilingual")) init.bilingual     = "true";
+    if (p.get("lgbtq"))     init.lgbtq         = "true";
+    if (p.get("harm"))      init.harmReduction = "true";
+    if (Object.keys(init).length > 0) setFilters(init);
+  }, []); // mount only
+
+  // Sync filters → URL so the view is shareable / survives refresh
+  useEffect(() => {
+    const p = new URLSearchParams();
+    if (filters.county)                     p.set("county",    filters.county);
+    if (filters.taxonomyTerm)               p.set("cat",       filters.taxonomyTerm);
+    if (filters.ageGroup)                   p.set("age",       filters.ageGroup);
+    if (filters.gender)                     p.set("gender",    filters.gender);
+    if (filters.bilingual === "true")       p.set("bilingual", "1");
+    if (filters.lgbtq === "true")           p.set("lgbtq",     "1");
+    if (filters.harmReduction === "true")   p.set("harm",      "1");
+    const qs = p.toString();
+    window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+  }, [filters]);
 
   useEffect(() => { setPage(1); }, [rpt, sortKey, sortDir]);
 
@@ -403,6 +449,14 @@ export default function Dashboard() {
           </div>
         </section>
 
+        {/* ── Context sentence ────────────────────────────────────────── */}
+        {activeCount > 0 && (
+          <div style={{ margin:"-8px 0 4px", padding:"10px 20px", background:"var(--color-accent-light)", borderRadius:6, fontSize:13, color:"var(--color-text-secondary)", fontFamily:"var(--font-sans)", borderLeft:"3px solid var(--color-accent)" }}>
+            <span style={{ color:"var(--color-text-muted)", textTransform:"uppercase", letterSpacing:"0.06em", fontSize:11, fontWeight:600, marginRight:8 }}>Viewing</span>
+            {buildContext(filters, kpis?.totalServices)}
+          </div>
+        )}
+
         {/* ── Overview tab ─────────────────────────────────────────────── */}
         {tab === "charts" && (
           <div style={{ display:"flex", flexDirection:"column", gap:"var(--space-5)" }}>
@@ -422,14 +476,19 @@ export default function Dashboard() {
                         tickFormatter={(v:string) => v.length>34 ? v.slice(0,32)+"…" : v} />
                       <Tooltip content={<TTip />} cursor={{ fill:CURSOR_FILL }} />
                       <Bar dataKey="count" radius={[0,3,3,0]} maxBarSize={18} style={{ cursor:"pointer" }}
+                        isAnimationActive={false}
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        label={(p: any) => p.value == null ? null : (
+                          <text key={p.index} x={p.x+p.width+5} y={p.y+(p.height??18)/2} fill={TICK_DARK}
+                            fontSize={10} dominantBaseline="middle" fontFamily="Inter,sans-serif">
+                            {Number(p.value).toLocaleString()}
+                          </text>
+                        )}
                         onClick={(data: {category:string}) => set("taxonomyTerm", filters.taxonomyTerm===data.category ? undefined : data.category)}>
                         {byCat.map((entry:{category:string},i:number) => (
                           <Cell key={i} fill={CHART_WARM[i%CHART_WARM.length]}
                             opacity={filters.taxonomyTerm && filters.taxonomyTerm!==entry.category ? 0.35 : 1} />
                         ))}
-                        <LabelList dataKey="count" position="right"
-                          style={{ fontSize:10, fill:TICK_COLOR, fontFamily:"var(--font-sans)" }}
-                          formatter={(v:number) => v.toLocaleString()} />
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
@@ -447,14 +506,19 @@ export default function Dashboard() {
                         tick={{ fontSize:11, fill:TICK_DARK, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false} />
                       <Tooltip content={<TTip />} cursor={{ fill:CURSOR_FILL }} />
                       <Bar dataKey="count" radius={[0,3,3,0]} maxBarSize={14} style={{ cursor:"pointer" }}
+                        isAnimationActive={false}
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        label={(p: any) => p.value == null ? null : (
+                          <text key={p.index} x={p.x+p.width+5} y={p.y+(p.height??14)/2} fill={TICK_DARK}
+                            fontSize={10} dominantBaseline="middle" fontFamily="Inter,sans-serif">
+                            {Number(p.value).toLocaleString()}
+                          </text>
+                        )}
                         onClick={(data: {county:string}) => set("county", filters.county===data.county ? undefined : data.county)}>
                         {byCty.map((entry:{county:string},i:number) => (
                           <Cell key={i} fill={CHART_WARM[i%CHART_WARM.length]}
                             opacity={filters.county && filters.county!==entry.county ? 0.35 : 1} />
                         ))}
-                        <LabelList dataKey="count" position="right"
-                          style={{ fontSize:10, fill:TICK_COLOR, fontFamily:"var(--font-sans)" }}
-                          formatter={(v:number) => v.toLocaleString()} />
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
@@ -474,11 +538,15 @@ export default function Dashboard() {
                       <XAxis dataKey="ageGroup" tick={{ fontSize:10, fill:TICK_DARK, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false} angle={-30} textAnchor="end" interval={0} />
                       <YAxis tick={{ fontSize:11, fill:TICK_COLOR, fontFamily:"var(--font-sans)" }} axisLine={false} tickLine={false} width={34} />
                       <Tooltip content={<TTip />} cursor={{ fill:CURSOR_FILL }} />
-                      <Bar dataKey="count" radius={[3,3,0,0]} fill="#78532a" maxBarSize={40}>
-                        <LabelList dataKey="count" position="top"
-                          style={{ fontSize:10, fill:TICK_COLOR, fontFamily:"var(--font-sans)" }}
-                          formatter={(v:number) => v.toLocaleString()} />
-                      </Bar>
+                      <Bar dataKey="count" radius={[3,3,0,0]} fill="#78532a" maxBarSize={40}
+                        isAnimationActive={false}
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        label={(p: any) => p.value == null ? null : (
+                          <text key={p.index} x={p.x+(p.width??0)/2} y={p.y-5} fill={TICK_DARK}
+                            fontSize={10} textAnchor="middle" fontFamily="Inter,sans-serif">
+                            {Number(p.value).toLocaleString()}
+                          </text>
+                        )} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -593,40 +661,77 @@ export default function Dashboard() {
                     <tbody>
                       {pagedRows.length === 0 ? (
                         <tr><td colSpan={11} style={{ padding:"var(--space-8)", textAlign:"center", color:"var(--color-text-muted)", fontSize:13 }}>No records match the current filters.</td></tr>
-                      ) : pagedRows.map((row, i) => (
-                        <tr key={row.id}
-                          style={{ borderBottom:`1px solid var(--color-border-subtle)`, background:i%2===0?"var(--color-surface)":"var(--color-bg)", transition:`background var(--duration-fast)` }}
-                          onMouseEnter={e => (e.currentTarget.style.background="var(--color-accent-light)")}
-                          onMouseLeave={e => (e.currentTarget.style.background=i%2===0?"var(--color-surface)":"var(--color-bg)")}>
-                          <td style={{ padding:"8px 12px", maxWidth:220 }}>
-                            <div style={{ fontWeight:500, color:"var(--color-text-primary)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                              {row.publicName || row.officialName || "—"}
-                            </div>
-                            {row.websiteAddress && (
-                              <a href={row.websiteAddress} target="_blank" rel="noopener noreferrer"
-                                style={{ color:"var(--color-accent)", textDecoration:"none", fontSize:10 }}>
-                                Website ↗
-                              </a>
+                      ) : pagedRows.map((row, i) => {
+                        const isExp = expandedRow === String(row.id);
+                        const rowBg = isExp ? "var(--color-accent-light)" : i%2===0 ? "var(--color-surface)" : "var(--color-bg)";
+                        return (
+                          <Fragment key={row.id}>
+                            <tr
+                              style={{ borderBottom: isExp ? "none" : `1px solid var(--color-border-subtle)`, background:rowBg, transition:`background var(--duration-fast)`, cursor:"pointer" }}
+                              onMouseEnter={e => { if (!isExp) e.currentTarget.style.background="var(--color-accent-light)"; }}
+                              onMouseLeave={e => { if (!isExp) e.currentTarget.style.background=rowBg; }}
+                              onClick={() => setExpandedRow(e => e===String(row.id) ? null : String(row.id))}>
+                              <td style={{ padding:"8px 12px", maxWidth:220 }}>
+                                <div style={{ fontWeight:500, color:"var(--color-text-primary)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                                  {row.publicName || row.officialName || "—"}
+                                </div>
+                              </td>
+                              <td style={{ padding:"8px 12px", maxWidth:180 }}>
+                                <span style={{ color:"var(--color-text-secondary)", overflow:"hidden", textOverflow:"ellipsis", display:"block", whiteSpace:"nowrap" }}>{row.category||"—"}</span>
+                              </td>
+                              <td style={{ padding:"8px 12px", whiteSpace:"nowrap", color:"var(--color-text-secondary)" }}>{row.physicalCity||"—"}</td>
+                              <td style={{ padding:"8px 12px", whiteSpace:"nowrap", color:"var(--color-text-secondary)" }}>{row.physicalCounty||"—"}</td>
+                              <td style={{ padding:"8px 12px", whiteSpace:"nowrap", color:"var(--color-text-secondary)" }}>{row.eligibilityAgeGroup||"—"}</td>
+                              <td style={{ padding:"8px 12px", whiteSpace:"nowrap", color:"var(--color-text-secondary)" }}>{row.eligibilityByGender||"—"}</td>
+                              <td style={{ padding:"8px 12px", maxWidth:160 }}>
+                                <span style={{ color:"var(--color-text-secondary)", overflow:"hidden", textOverflow:"ellipsis", display:"block", whiteSpace:"nowrap" }}>{row.languagesOfferedList||"—"}</span>
+                              </td>
+                              <BoolCell value={row.bilingualService} />
+                              <BoolCell value={row.lgbtqSupport} />
+                              <BoolCell value={row.harmReduction} />
+                              <td style={{ padding:"8px 12px", maxWidth:160, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                                <span style={{ color:"var(--color-text-secondary)", overflow:"hidden", textOverflow:"ellipsis", display:"block", whiteSpace:"nowrap" }}>{row.normalWaitTime||"—"}</span>
+                                <span style={{ fontSize:10, color:"var(--color-text-muted)", marginLeft:6, flexShrink:0 }}>{isExp ? "▲" : "▼"}</span>
+                              </td>
+                            </tr>
+                            {isExp && (
+                              <tr style={{ borderBottom:`1px solid var(--color-border-subtle)` }}>
+                                <td colSpan={11} style={{ padding:"0 12px 14px", background:"var(--color-accent-light)" }}>
+                                  <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))", gap:"10px 24px", padding:"12px 12px 10px", background:"var(--color-surface)", borderRadius:6, border:"1px solid var(--color-border)" }}>
+                                    {[
+                                      { label:"Official Name",    value: row.officialName },
+                                      { label:"Full Category",    value: row.category },
+                                      { label:"City",             value: row.physicalCity },
+                                      { label:"County",           value: row.physicalCounty },
+                                      { label:"Age Group",        value: row.eligibilityAgeGroup },
+                                      { label:"Gender",           value: row.eligibilityByGender },
+                                      { label:"Languages",        value: row.languagesOfferedList },
+                                      { label:"Wait Time",        value: row.normalWaitTime },
+                                      { label:"Bilingual",        value: row.bilingualService ? "Yes" : "No" },
+                                      { label:"LGBTQ+ Affirming", value: row.lgbtqSupport ? "Yes" : "No" },
+                                      { label:"Harm Reduction",   value: row.harmReduction ? "Yes" : "No" },
+                                    ].map(({label,value}) => (
+                                      <div key={label}>
+                                        <div style={{ fontSize:9, textTransform:"uppercase", letterSpacing:"0.07em", fontWeight:700, color:"var(--color-text-muted)", fontFamily:"var(--font-sans)", marginBottom:2 }}>{label}</div>
+                                        <div style={{ fontSize:12, color:"var(--color-text-primary)", fontFamily:"var(--font-sans)", wordBreak:"break-word" }}>{value || "—"}</div>
+                                      </div>
+                                    ))}
+                                    {row.websiteAddress && (
+                                      <div>
+                                        <div style={{ fontSize:9, textTransform:"uppercase", letterSpacing:"0.07em", fontWeight:700, color:"var(--color-text-muted)", fontFamily:"var(--font-sans)", marginBottom:2 }}>Website</div>
+                                        <a href={row.websiteAddress} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+                                          style={{ fontSize:12, color:"var(--color-accent)", textDecoration:"none", fontFamily:"var(--font-sans)", wordBreak:"break-all" }}>
+                                          {row.websiteAddress} ↗
+                                        </a>
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
                             )}
-                          </td>
-                          <td style={{ padding:"8px 12px", maxWidth:180 }}>
-                            <span style={{ color:"var(--color-text-secondary)", overflow:"hidden", textOverflow:"ellipsis", display:"block", whiteSpace:"nowrap" }}>{row.category||"—"}</span>
-                          </td>
-                          <td style={{ padding:"8px 12px", whiteSpace:"nowrap", color:"var(--color-text-secondary)" }}>{row.physicalCity||"—"}</td>
-                          <td style={{ padding:"8px 12px", whiteSpace:"nowrap", color:"var(--color-text-secondary)" }}>{row.physicalCounty||"—"}</td>
-                          <td style={{ padding:"8px 12px", whiteSpace:"nowrap", color:"var(--color-text-secondary)" }}>{row.eligibilityAgeGroup||"—"}</td>
-                          <td style={{ padding:"8px 12px", whiteSpace:"nowrap", color:"var(--color-text-secondary)" }}>{row.eligibilityByGender||"—"}</td>
-                          <td style={{ padding:"8px 12px", maxWidth:160 }}>
-                            <span style={{ color:"var(--color-text-secondary)", overflow:"hidden", textOverflow:"ellipsis", display:"block", whiteSpace:"nowrap" }}>{row.languagesOfferedList||"—"}</span>
-                          </td>
-                          <BoolCell value={row.bilingualService} />
-                          <BoolCell value={row.lgbtqSupport} />
-                          <BoolCell value={row.harmReduction} />
-                          <td style={{ padding:"8px 12px", maxWidth:160 }}>
-                            <span style={{ color:"var(--color-text-secondary)", overflow:"hidden", textOverflow:"ellipsis", display:"block", whiteSpace:"nowrap" }}>{row.normalWaitTime||"—"}</span>
-                          </td>
-                        </tr>
-                      ))}
+                          </Fragment>
+                        );
+                      })}
                     </tbody>
                   </table>
 
