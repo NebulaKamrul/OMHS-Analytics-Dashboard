@@ -1,18 +1,18 @@
 # Ontario Mental Health Services Intelligence Dashboard
 
-A Business Intelligence dashboard built on a real dataset of 5,945 Ontario mental health service records published by the Ministry of Health (Kids Help Phone 2019 MOH Export). Designed to replicate the kind of internal analytics tool used by policy analysts, administrators, and service planners.
+Built a full-stack mental health dashboard using real Ontario service data (~6,000 records).
+
+This project takes messy, real-world Excel data and turns it into something usable — with a database, API, and interactive dashboard for exploring services by location, category, and eligibility.
+
+Live demo: https://ontariomhd.replit.app/
 
 ---
 
-## Project Purpose
+## What I focused on
 
-This project demonstrates:
-
-- Real-world Excel data cleaning and transformation
-- Relational database schema design in PostgreSQL
-- SQL-based analytics queries
-- RESTful API with typed request/response contracts (OpenAPI + codegen)
-- Filterable BI dashboard with multiple chart types and export functionality
+- Turning messy real-world data into structured, usable insights  
+- Building end-to-end systems (data → database → API → frontend)  
+- Making complex information easy to explore through filters and visualizations  
 
 ---
 
