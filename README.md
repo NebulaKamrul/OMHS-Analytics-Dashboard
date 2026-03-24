@@ -209,4 +209,4 @@ Requires `DATABASE_URL` environment variable.
 
 - **Built a reproducible ETL pipeline** that cleans messy real-world Excel data, normalizes free-text bilingual/LGBTQ/gender eligibility fields to structured booleans, derives age eligibility groups from semicolon-delimited age lists, and loads 10,000+ normalized taxonomy rows via batched PostgreSQL inserts using Drizzle ORM.
 
-- **Architected a SQL-backed analytics API** with filter-consistent GROUP BY aggregation endpoints (taxonomy, geography, eligibility, language distribution), an OpenAPI 3.1 spec, and orval-generated TypeScript React Query hooks — demonstrating end-to-end type safety from database schema to UI component.
+- **Architected a SQL-backed analytics API** with filter-consistent GROUP BY aggregation endpoints (taxonomy, geography, eligibility, language distribution), an OpenAPI 3.1 spec, and orval-generated TypeScript React Query hooks, demonstrating end-to-end type safety from database schema to UI component.
